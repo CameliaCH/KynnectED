@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}Contact &middot; KynnectED{% endblock %}
+
+{% block content %}
+  <main class="page-hero">
+    <h1>Contact</h1>
+    <p class="tagline">Have a question? Reach out and we'll get back to you.</p>
+  </main>
+
+  <section class="page-body">
+    <form class="contact-form">
+      <label>
+        Name
+        <input type="text" name="name" placeholder="Your name">
+      </label>
+      <label>
+        Email
+        <input type="email" name="email" placeholder="you@example.com">
+      </label>
+      <label>
+        Message
+        <textarea name="message" rows="5" placeholder="How can we help?"></textarea>
+      </label>
+      <button type="submit" class="btn-signin">Send message</button>
+    </form>
+  </section>
+{% endblock %}

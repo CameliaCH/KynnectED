@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <main class="hero">
+    <h1 class="logo">KynnectED</h1>
+    <p class="tagline">Peer-to-peer mentoring</p>
+  </main>
+
+  <div class="banner">
+    <img src="{{ url_for('static', filename='img/classroom-banner.jpg') }}" alt="Students raising their hands in a classroom">
+  </div>
+
+  <section class="mission">
+    <div class="mission-header">
+      <h2>The mission</h2>
+    </div>
+
+    <div class="mission-content">
+      <div class="mission-image">
+        <div class="sun"></div>
+        <svg class="mountains" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <polygon points="0,100 25,35 45,65 68,15 100,45 100,100" />
+        </svg>
+      </div>
+
+      <div class="mission-text">
+        <h3>Who are we?</h3>
+        <p>
+          A little paragraph introduction that gives a sense of what you do,
+          who you are, where you're from, and why you created this website.
+          This is the most likely part of the page to be read in full.
+        </p>
+      </div>
+    </div>
+
+    <blockquote class="mission-quote">
+      <p>&ldquo;One child, one teacher, one book, and one pen can change the world&rdquo;</p>
+      <cite>&minus;Malala Yousafazi</cite>
+    </blockquote>
+  </section>
+
+  <section class="how">
+    <h2>How it works</h2>
+
+    <ol class="steps">
+      <li class="step">
+        <span class="step-number">1</span>
+        <div class="step-text">
+          <h3>Are you a mentee or mentor?</h3>
+          <ul>
+            <li>Either sign up to be a mentee to a assigned student or get matched with a mentor.</li>
+            <li>Click on the appropriate link and read the details of your role</li>
+          </ul>
+        </div>
+        <div class="step-image"></div>
+      </li>
+
+      <li class="step">
+        <span class="step-number">2</span>
+        <div class="step-text">
+          <h3>Sign up with us</h3>
+          <ul>
+            <li>Enter additional information about yourself to form the best possible pair</li>
+            <li>Screening processes will be conducted for mentors</li>
+          </ul>
+        </div>
+        <div class="step-image"></div>
+      </li>
+
+      <li class="step">
+        <span class="step-number">3</span>
+        <div class="step-text">
+          <h3>Open your dashboard</h3>
+          <ul>
+            <li>get access to additional learning resources</li>
+            <li>chat within dashboard to pair</li>
+            <li>plan and begin lessons</li>
+          </ul>
+        </div>
+        <div class="step-image"></div>
+      </li>
+    </ol>
+  </section>
+
+  <section class="cards">
+    <a class="card" href="#">
+      <div class="card-image texture-mentee"></div>
+      <div class="card-body">
+        <h3>Find a Mentor</h3>
+        <p>Explanation</p>
+        <span class="card-link">Click here<span class="arrow">&rarr;</span></span>
+      </div>
+    </a>
+
+    <a class="card" href="#">
+      <div class="card-image texture-mentor"></div>
+      <div class="card-body">
+        <h3>Become a Mentor</h3>
+        <p>Cards are a great way to organize content in a collection&mdash;products, case studies, services, and more.</p>
+        <span class="card-link">Click here <span class="arrow">&rarr;</span></span>
+      </div>
+    </a>
+  </section>
+
+  <section class="team">
+    <h2>Meet the Team</h2>
+
+    <div class="team-grid">
+      <div class="team-member">
+        <div class="team-photo"></div>
+        <div class="team-meta">
+          <span class="team-name">Camelia Chew</span>
+          <span class="team-year">2025</span>
+        </div>
+      </div>
+
+      <div class="team-member">
+        <div class="team-photo"></div>
+        <div class="team-meta">
+          <span class="team-name">Jade Lim</span>
+          <span class="team-year">2025</span>
+        </div>
+      </div>
+
+      <div class="team-member">
+        <div class="team-photo"></div>
+        <div class="team-meta">
+          <span class="team-name">Ian Park</span>
+          <span class="team-year">2025</span>
+        </div>
+      </div>
+
+      <div class="team-member">
+        <div class="team-photo"></div>
+        <div class="team-meta">
+          <span class="team-name">Some rando dude</span>
+          <span class="team-year">2025</span>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
