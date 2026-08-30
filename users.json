@@ -1,0 +1,158 @@
+[
+    {
+        "id": 1,
+        "username": "placeholder",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$fb0jWCwVoZ4V3eBbNTYzlg$yLa4yZzvad/GRLtKd+eG23CS/ZjuXBSdukKxFqey08A",
+        "name": [
+            "Place",
+            "Holder"
+        ],
+        "subjects": [
+            "maths",
+            "science"
+        ],
+        "age": 16,
+        "gender": "male",
+        "gender_preferred": [
+            "same",
+            "opposite"
+        ],
+        "age_preferred": [
+            "younger"
+        ],
+        "role": "mentor",
+        "partners": [],
+        "availability": {
+            "sunday": [
+                "empty"
+            ],
+            "monday": [
+                "empty"
+            ],
+            "tuesday": [
+                "empty"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "empty"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "empty"
+            ]
+        }
+    },
+    {
+        "id": 2,
+        "username": "ianpark7",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$RTpqFowefX1vyJr5Y0t/Vg$LlACt3i4f4+S5nYuJzTohvkQW+vbC4Y1R1gPAoTYv/k",
+        "name": [
+            "Ian",
+            "Park"
+        ],
+        "subjects": [
+            "maths",
+            "mandarin",
+            "science"
+        ],
+        "age": 16,
+        "gender": "male",
+        "gender_preferred": [
+            "same",
+            "opposite"
+        ],
+        "age_preferred": [
+            "older",
+            "same-age"
+        ],
+        "role": "mentor",
+        "partners": [],
+        "availability": {
+            "sunday": [
+                "15:30",
+                "16:00",
+                "16:30",
+                "19:00",
+                "19:30"
+            ],
+            "monday": [
+                "13:00"
+            ],
+            "tuesday": [
+                "empty"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "14:00"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "13:00",
+                "10:00"
+            ]
+        }
+    },
+    {
+        "id": 3,
+        "username": "ianpark99",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$wLZr6oOCuZ8Y+bXxAsDFLA$cnNIOc5GeyFFVrdInoQGr/ATixWMm8nvzyLAEHL8HeQ",
+        "name": [
+            "Ian",
+            "Park"
+        ],
+        "subjects": [
+            "english",
+            "mandarin",
+            "maths"
+        ],
+        "age": 16,
+        "gender": "male",
+        "gender_preferred": [
+            "same",
+            "opposite"
+        ],
+        "age_preferred": [
+            "same-age",
+            "younger"
+        ],
+        "role": "mentor",
+        "partners": [],
+        "availability": {
+            "sunday": [
+                "10:00",
+                "11:00",
+                "14:00",
+                "14:30",
+                "15:00",
+                "19:00"
+            ],
+            "monday": [
+                "empty"
+            ],
+            "tuesday": [
+                "empty"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "14:00",
+                "14:30"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "14:00"
+            ]
+        }
+    }
+]
