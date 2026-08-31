@@ -78,12 +78,13 @@ def export():
 
 	resulting_csv = output.getvalue()
 	
-	mem_file = io.BytesIO()
-	mem_file.write(output.getvalue().encode('utf-8'))
-	
-	mem_file.seek(0)
+	reader = csv.reader(io.StringIO(resulting_csv))
+	rows = list(reader)
 
-	return send_file(mem_file,mimetype='text/plain',as_attachment=True,download_name=f'users_export_{int(datetime.timestamp(datetime.utcnow()))}.csv')
+	headers = rows[0]
+	data = rows[1:]
+
+	return render_template("table.html", headers=headers, rows=data, raw=resulting_csv)
 
 @app.route('/signup-process', methods=['POST'])
 def signup_process():
