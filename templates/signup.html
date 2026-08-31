@@ -338,6 +338,12 @@
                 }
             }
             if (document.getElementById("part2").style.display != "none") {
+                role = "none";
+                for (i of document.getElementsByClassName("role")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        role = i.id;
+                    }
+                }
                 if (role == "none") {
                     document.getElementById("error").innerHTML = "Please select a role first before pressing 'Next'.";
                     document.getElementById("error").classList.add("show");
@@ -364,6 +370,12 @@
                 }
             }
             if (document.getElementById("part3").style.display != "none") {
+                selectedSubjects = [];
+                for (i of document.getElementsByClassName("subject")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        selectedSubjects.push(i.id);
+                    }
+                }
                 if (selectedSubjects.length == 0) {
                     document.getElementById("error").innerHTML = "Please select at least one subject first before pressing 'Next'.";
                     document.getElementById("error").classList.add("show");
@@ -396,6 +408,12 @@
                 }, 500);
             }
             if (document.getElementById("part5").style.display != "none") {
+                gender_own = "none";
+                for (i of document.getElementsByClassName("gender-own")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        gender_own = i.id.replaceAll("-own", "");
+                    }
+                }
                 if (gender_own == "none") {
                     document.getElementById("error").innerHTML = "Please select your gender first before pressing 'Next'.";
                     document.getElementById("error").classList.add("show");
@@ -411,6 +429,12 @@
                 }, 500);
             }
             if (document.getElementById("part6").style.display != "none") {
+                gender_preferred = [];
+                for (i of document.getElementsByClassName("gender-preferred")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        gender_preferred.push(i.id.replaceAll("-preferred", ""));
+                    }
+                }
                 if (gender_preferred.length == 0) {
                     document.getElementById("error").innerHTML = "Please select your gender preference first before pressing 'Next'.";
                     document.getElementById("error").classList.add("show");
@@ -427,6 +451,12 @@
                 }, 500);
             }
             if (document.getElementById("next").innerHTML == "Sign up") {
+                age_preferred = [];
+                for (i of document.getElementsByClassName("age-preferred")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        age_preferred.push(i.id.replaceAll("-preferred", ""));
+                    }
+                }
                 if (age_preferred.length == 0) {
                     document.getElementById("error").innerHTML = "Please select your age preference first before pressing 'Sign up'.";
                     document.getElementById("error").classList.add("show");

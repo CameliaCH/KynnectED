@@ -154,5 +154,54 @@
                 "14:00"
             ]
         }
+    },
+    {
+        "id": 4,
+        "username": "test3",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$91YaRZ9mSCWrKzqC5CNm8A$lBqwkoP5hin9vc29PnPT7jbK2nLdgkww+LL6Pv6j3pE",
+        "name": [
+            "Test",
+            "Three"
+        ],
+        "subjects": [
+            "english",
+            "malay",
+            "science"
+        ],
+        "age": 19,
+        "gender": "female",
+        "gender_preferred": [
+            "same"
+        ],
+        "age_preferred": [
+            "older",
+            "same-age"
+        ],
+        "role": "mentee",
+        "partners": [],
+        "availability": {
+            "sunday": [
+                "empty"
+            ],
+            "monday": [
+                "empty"
+            ],
+            "tuesday": [
+                "empty"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "empty"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "14:00",
+                "15:30"
+            ]
+        }
     }
 ]
