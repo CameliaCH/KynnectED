@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up &middot; KynnectED</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=IBM Plex Sans:ital,wght@0,300..700;1,300..900&display=swap');
+
+        body {
+            background: #121212;
+            color: white;
+            font-family: 'IBM Plex Sans', sans-serif;
+        }
+
+        .container {
+            border: 3px solid white;
+            padding: 10px;
+            width: 20vw;
+            height: 90vh;
+            line-height: 0.4;
+        }
+
+        input[type="text"], input[type="password"], input[type="number"] {
+            border: none;
+            background: none;
+            outline: none;
+            color: white;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 1.6vw;
+            border-bottom: 0.3vw solid #888;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus {
+            border: none;
+            background: none;
+            outline: none;
+            color: white;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 1.6vw;
+        }
+
+        .input-container {
+            cursor: text;
+            position: relative;
+            width: 50%;
+            border-bottom: 2px solid #ccc;
+        }
+
+        .input-container input {
+            width: 100%;
+            padding: 10px 0;
+            border: none;
+            outline: none;
+            background: transparent;
+        }
+
+        .input-container::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(to right, #3498db 50%, transparent 50%);
+            background-size: 200% 100%;
+            background-position: right bottom;
+            transition: background-position 0.4s ease-in;
+        }
+
+        .input-container:hover::after {
+            background-position: left bottom;
+        }
+
+        .input-container:focus-within::after {
+            background-position: left bottom;
+        }
+
+        button {
+            border: none;
+            outline: none;
+            font-family: 'IBM Plex Sans', sans-serif;
+            font-size: 3vw;
+            background-color: white;
+            transition: background-color 140ms ease-in;
+        }
+
+        button:hover {
+            cursor: pointer;
+            background-color: #3498db;
+        }
+
+        button:disabled:hover {
+            cursor: not-allowed;
+            background-color: #888;
+        }
+
+        #part1, #part2 {
+            display: flex;
+        }
+
+        #part2{
+            width: 90vw;
+            height: 15vw;
+        }
+
+        .subject, .role, .day, .gender-own, .gender-preferred, .age-preferred {
+            background-color: #333;
+            border-radius: 3vw;
+            justify-content: center;
+            display: flex;
+            align-items: flex-end;
+            font-size: 3vh;
+            cursor: pointer;
+            width: 15vw;
+            height: 15vw;
+        }
+
+        #overlay {
+            position: absolute;
+            margin: auto;
+            width: 100%;
+            height: 100%;
+            background-color: #121212;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.5s ease-in-out;
+            z-index: 10;
+        }
+        #overlay.visible {
+            opacity: 1;
+        }
+        #error {
+            display: none;
+            color: orange;
+        }
+        #error.show {
+            display: block;
+        }
+        #pw-dont-match {
+            display: none;
+            color: orange;
+        }
+        #pw-dont-match.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Welcome to KynnectED!</h1>
+    <form action="/signup-process" method="post">
+        <div id="overlay"></div>
+        <h2 id="question">We need a bit of information about you before your account can be created.</h2>
+        <h3 id="error">Please fill in all fields.</h3>
+        <h3 id="pw-dont-match">Your passwords do not match.</h3>
+        <div id="part1">
+            <div class="input-container">
+                <input type="text" placeholder="Username" name="username" id="username" autocomplete="off">
+            </div>
+            &nbsp;&nbsp;
+            <div class="input-container">
+                <input type="text" placeholder="First name" name="firstname" id="firstname" autocomplete="off">
+            </div>
+            &nbsp;&nbsp;
+            <div class="input-container">
+                <input type="text" placeholder="Surname" name="surname" id="surname" autocomplete="off">
+            </div>
+            &nbsp;&nbsp;
+            <div class="input-container">
+                <input type="number" placeholder="Age" name="age" id="age" autocomplete="off">
+            </div>
+            &nbsp;&nbsp;
+            <div class="input-container">
+                <input type="password" placeholder="Password" name="password" id="password" autocomplete="off">
+            </div>
+            &nbsp;&nbsp;
+            <div class="input-container">
+                <input type="password" placeholder="Re-type Password" name="confirm-password" id="confirm-password" autocomplete="off">
+            </div>
+        </div>
+
+        
+        <span id="part2" style="display: none;">
+            <br>
+            <span class="role" id="mentor">
+                <img src="/static/img/mentor.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="role" id="mentee">
+                <img src="/static/img/mentee.png" width="100%">
+            </span>
+        </span>
+        
+        <span id="part3" style="display: none;">
+            <br>
+            <span class="subject" id="maths">
+                <img src="/static/img/maths.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="subject" id="english">
+                <img src="/static/img/english.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="subject" id="malay">
+                <img src="/static/img/malay.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="subject" id="mandarin">
+                <img src="/static/img/mandarin.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="subject" id="science">
+                <img src="/static/img/science.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="subject" id="art">
+                <img src="/static/img/art.png" width="100%">
+            </span>
+        </span>
+        
+        <span id="part4" style="display: none;">
+            <span class="day" id="sunday">
+                <img src="/static/img/sunday.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="day" id="monday">
+                <img src="/static/img/monday.png" width="100%"> 
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="day" id="tuesday">
+                <img src="/static/img/tuesday.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="day" id="wednesday">
+                <img src="/static/img/wednesday.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="day" id="thursday">
+                <img src="/static/img/thursday.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="day" id="friday">
+                <img src="/static/img/friday.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="day" id="saturday">
+                <img src="/static/img/saturday.png" width="100%">
+            </span>
+        </span>
+        
+        <span id="part5" style="display: none;">
+            <span class="gender-own" id="male-own">
+                <img src="/static/img/male.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="gender-own" id="female-own">
+                <img src="/static/img/female.png" width="100%"> 
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="gender-own" id="other-own">
+                <img src="/static/img/other.png" width="100%"> 
+            </span>
+        </span>
+        
+        <span id="part6" style="display: none;">
+            <span class="gender-preferred" id="same-preferred">
+                <img src="/static/img/same.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="gender-preferred" id="opposite-preferred">
+                <img src="/static/img/opposite.png" width="100%"> 
+            </span>
+        </span>
+        
+        <span id="part7" style="display: none;">
+            <span class="age-preferred" id="older-preferred">
+                <img src="/static/img/older.png" width="100%">
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="age-preferred" id="same-age-preferred">
+                <img src="/static/img/same-age.png" width="100%"> 
+            </span>
+            &nbsp;
+            &nbsp;
+            <span class="age-preferred" id="younger-preferred">
+                <img src="/static/img/younger.png" width="100%">
+            </span>
+        </span>
+        
+        <br>
+        <button type="button" id="back" onclick="backsection();" disabled>Back</button>
+        <button type="button" id="next" onclick="nextsection();">Next</button>
+    </form><br>
+    <h2 style="font-size: 2vw;">Already own an account? <a href="/login"><button style="font-size: 2vw;">Log In</button></a></h2>
+
+    <script>
+        const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+        let selectedSubjects = [];
+        let gender_own = "none";
+        let gender_preferred = [];
+        let age_preferred = [];
+
+        const nextsection = () => {
+            if (document.getElementById("part1").style.display != "none") {
+                if (document.getElementById("password").value != document.getElementById("confirm-password").value) {
+                    document.getElementById("pw-dont-match").classList.add("show");
+                    document.getElementById("error").classList.remove("show");
+                } else if (document.getElementById("firstname").value != "" && document.getElementById("surname").value != "" && document.getElementById("age").value != "" && document.getElementById("password").value != "" && document.getElementById("confirm-password").value != "") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part1").style.display = "none";
+                        document.getElementById("part2").style.display = "flex";
+                        document.getElementById("question").innerHTML = "Hi " + document.getElementById("firstname").value + "! Are you registering as a mentor or a mentee?"
+                        document.getElementById("overlay").classList.remove("visible");
+                        document.getElementById("back").disabled = false;
+                        document.getElementById("error").classList.remove("show");
+                        document.getElementById("pw-dont-match").classList.remove("show");
+                    }, 500);
+                } else {
+                    document.getElementById("pw-dont-match").classList.remove("show");
+                    document.getElementById("error").classList.add("show");
+                }
+            }
+            if (document.getElementById("part2").style.display != "none") {
+                role = "none";
+                for (i of document.getElementsByClassName("role")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        role = i.id;
+                    }
+                }
+                if (role == "none") {
+                    document.getElementById("error").innerHTML = "Please select a role first before pressing 'Next'.";
+                    document.getElementById("error").classList.add("show");
+                } else if (role == "mentee") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part2").style.display = "none";
+                        document.getElementById("part3").style.display = "flex";
+                        document.getElementById("question").innerHTML = "Which subjects do you want a mentor for? (You can choose more than one subject)"
+                        document.getElementById("overlay").classList.remove("visible");
+                        document.getElementById("error").classList.remove("show");
+                    }, 500);
+                } else if (role == "mentor") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part2").style.display = "none";
+                        document.getElementById("part3").style.display = "flex";
+                        document.getElementById("question").innerHTML = "Which subjects do you want to be a mentor for? (You can choose more than one subject)"
+                        document.getElementById("overlay").classList.remove("visible");
+                        document.getElementById("error").classList.remove("show");
+                    }, 500);
+                }else {
+                    document.getElementById("error").classList.add("show");
+                }
+            }
+            if (document.getElementById("part3").style.display != "none") {
+                selectedSubjects = [];
+                for (i of document.getElementsByClassName("subject")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        selectedSubjects.push(i.id);
+                    }
+                }
+                if (selectedSubjects.length == 0) {
+                    document.getElementById("error").innerHTML = "Please select at least one subject first before pressing 'Next'.";
+                    document.getElementById("error").classList.add("show");
+                    return;
+                }
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part3").style.display = "none";
+                    document.getElementById("part4").style.display = "flex";
+                    document.getElementById("question").innerHTML = "Now, let's figure out your schedule. Click each day and add your available times."
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            }
+            if (document.getElementById("part4").style.display != "none") {
+                for (i of days) {
+                    if (i.length == 0) {
+                        document.getElementById("error").innerHTML = "Please select your availability for all seven days before pressing 'Next'.";
+                        document.getElementById("error").classList.add("show");
+                        return;
+                    }
+                }
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part4").style.display = "none";
+                    document.getElementById("part5").style.display = "flex";
+                    document.getElementById("question").innerHTML = "What is your gender?"
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            }
+            if (document.getElementById("part5").style.display != "none") {
+                gender_own = "none";
+                for (i of document.getElementsByClassName("gender-own")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        gender_own = i.id.replaceAll("-own", "");
+                    }
+                }
+                if (gender_own == "none") {
+                    document.getElementById("error").innerHTML = "Please select your gender first before pressing 'Next'.";
+                    document.getElementById("error").classList.add("show");
+                    return;
+                }
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part5").style.display = "none";
+                    document.getElementById("part6").style.display = "flex";
+                    document.getElementById("question").innerHTML = "Which gender(s) would you prefer to be matched with? (You can choose both if you don't mind)"
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            }
+            if (document.getElementById("part6").style.display != "none") {
+                gender_preferred = [];
+                for (i of document.getElementsByClassName("gender-preferred")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        gender_preferred.push(i.id.replaceAll("-preferred", ""));
+                    }
+                }
+                if (gender_preferred.length == 0) {
+                    document.getElementById("error").innerHTML = "Please select your gender preference first before pressing 'Next'.";
+                    document.getElementById("error").classList.add("show");
+                    return;
+                }
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part6").style.display = "none";
+                    document.getElementById("part7").style.display = "flex";
+                    document.getElementById("question").innerHTML = "What age range would you prefer to be matched with? (You can choose more than one option)"
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("next").innerHTML = "Sign up";
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            }
+            if (document.getElementById("next").innerHTML == "Sign up") {
+                age_preferred = [];
+                for (i of document.getElementsByClassName("age-preferred")) {
+                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
+                        age_preferred.push(i.id.replaceAll("-preferred", ""));
+                    }
+                }
+                if (age_preferred.length == 0) {
+                    document.getElementById("error").innerHTML = "Please select your age preference first before pressing 'Sign up'.";
+                    document.getElementById("error").classList.add("show");
+                    return;
+                }
+                let data = new URLSearchParams({ username: document.getElementById("username").value, firstname: document.getElementById("firstname").value, surname: document.getElementById("surname").value, age: document.getElementById("age").value, password: document.getElementById("password").value, role: role, selectedSubjects: JSON.stringify(selectedSubjects), gender_own: gender_own, gender_preferred: JSON.stringify(gender_preferred), age_preferred: JSON.stringify(age_preferred), days: JSON.stringify(days)});
+                fetch('/signup-process', { method: 'POST', body: data }).then(response => response.json())
+                .then(data => {
+                    if (data.error == "none") location.href = "/login";
+                    if (data.error == "1") location.href = "/error1";
+                    if (data.error == "2") location.href = "/error2";
+                });
+            }
+        }
+
+
+        const backsection = () => {
+            if (document.getElementById("part7").style.display != "none") {
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part7").style.display = "none";
+                    document.getElementById("part6").style.display = "flex";
+                    document.getElementById("question").innerHTML = "Which gender(s) would you prefer to be matched with? (You can choose both if you don't mind)"
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("next").innerHTML = "Next";
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            } else if (document.getElementById("part6").style.display != "none") {
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part6").style.display = "none";
+                    document.getElementById("part5").style.display = "flex";
+                    document.getElementById("question").innerHTML = "What is your gender?"
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            } else if (document.getElementById("part5").style.display != "none") {
+                document.getElementById("overlay").classList.add("visible");
+                setTimeout(() => {
+                    document.getElementById("part5").style.display = "none";
+                    document.getElementById("part4").style.display = "flex";
+                    document.getElementById("question").innerHTML = "Now, let's figure out your schedule. Click each day and add your available times."
+                    document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                }, 500);
+            } else if (document.getElementById("part4").style.display != "none") {
+                if (role == "mentee") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part4").style.display = "none";
+                        document.getElementById("part3").style.display = "flex";
+                        document.getElementById("question").innerHTML = "Which subjects do you want a mentor for? (You can choose more than one subject)"
+                        document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                    }, 500);
+                } else if (role == "mentor") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part4").style.display = "none";
+                        document.getElementById("part3").style.display = "flex";
+                        document.getElementById("question").innerHTML = "Which subjects do you want to be a mentor for? (You can choose more than one subject)"
+                        document.getElementById("overlay").classList.remove("visible");
+                    document.getElementById("error").classList.remove("show");
+                    }, 500);
+                } 
+            } else if (document.getElementById("part3").style.display != "none") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part3").style.display = "none";
+                        document.getElementById("part2").style.display = "flex";
+                        document.getElementById("question").innerHTML = "Hi " + document.getElementById("firstname").value + "! Are you registering as a mentor or a mentee?"
+                        document.getElementById("overlay").classList.remove("visible");
+                        document.getElementById("error").classList.remove("show");
+                    }, 500);
+                } if (document.getElementById("part2").style.display != "none") {
+                    document.getElementById("overlay").classList.add("visible");
+                    setTimeout(() => {
+                        document.getElementById("part2").style.display = "none";
+                        document.getElementById("part1").style.display = "flex";
+                        document.getElementById("question").innerHTML = "We need a bit of information about you before your account can be created."
+                        document.getElementById("overlay").classList.remove("visible");
+                        document.getElementById("error").classList.remove("show");
+                        document.getElementById("back").disabled = true;
+                    }, 500);
+                }
+        }
+
+        let role = "none";
+
+        document.getElementById("mentor").addEventListener("click", () => {
+            document.getElementById("mentor").style.backgroundColor = "#888";
+            document.getElementById("mentee").style.backgroundColor = "#333";
+            role = "mentor";
+        });
+
+        document.getElementById("mentee").addEventListener("click", () => {
+            document.getElementById("mentee").style.backgroundColor = "#888";
+            document.getElementById("mentor").style.backgroundColor = "#333";
+            role = "mentee";
+        });
+
+        document.getElementById("male-own").addEventListener("click", () => {
+            document.getElementById("male-own").style.backgroundColor = "#888";
+            document.getElementById("female-own").style.backgroundColor = "#333";
+            document.getElementById("other-own").style.backgroundColor = "#333";
+            gender_own = "male";
+        });
+
+        document.getElementById("female-own").addEventListener("click", () => {
+            document.getElementById("male-own").style.backgroundColor = "#333";
+            document.getElementById("female-own").style.backgroundColor = "#888";
+            document.getElementById("other-own").style.backgroundColor = "#333";
+            gender_own = "female";
+        });
+
+        document.getElementById("other-own").addEventListener("click", () => {
+            document.getElementById("male-own").style.backgroundColor = "#333";
+            document.getElementById("female-own").style.backgroundColor = "#333";
+            document.getElementById("other-own").style.backgroundColor = "#888";
+            gender_own = "other";
+        });
+
+        document.getElementById("same-preferred").addEventListener("click", () => {
+            if (gender_preferred.includes("same") && document.getElementById("same-preferred").style.backgroundColor == "#888") {
+                document.getElementById("same-preferred").style.backgroundColor = "#333";
+                gender_preferred.pop(gender_preferred.indexOf("same"));
+            } else {
+                document.getElementById("same-preferred").style.backgroundColor = "#888";
+                gender_preferred.push("same");
+            }
+        });
+
+        document.getElementById("opposite-preferred").addEventListener("click", () => {
+            if (gender_preferred.includes("opposite") && document.getElementById("opposite-preferred").style.backgroundColor == "#888") {
+                document.getElementById("opposite-preferred").style.backgroundColor = "#333";
+                gender_preferred.pop(gender_preferred.indexOf("opposite"));
+            } else {
+                document.getElementById("opposite-preferred").style.backgroundColor = "#888";
+                gender_preferred.push("opposite");
+            }
+        });
+
+        document.getElementById("younger-preferred").addEventListener("click", () => {
+            if (age_preferred.includes("younger") && document.getElementById("younger-preferred").style.backgroundColor == "#888") {
+                document.getElementById("younger-preferred").style.backgroundColor = "#333";
+                age_preferred.pop(age_preferred.indexOf("younger"));
+            } else {
+                document.getElementById("younger-preferred").style.backgroundColor = "#888";
+                age_preferred.push("younger");
+            }
+        });
+
+        document.getElementById("same-age-preferred").addEventListener("click", () => {
+            if (age_preferred.includes("same-age") && document.getElementById("older-preferred").style.backgroundColor == "#888") {
+                document.getElementById("same-age-preferred").style.backgroundColor = "#333";
+                age_preferred.pop(age_preferred.indexOf("same-age"));
+            } else {
+                document.getElementById("same-age-preferred").style.backgroundColor = "#888";
+                age_preferred.push("same-age");
+            }
+        });
+
+        document.getElementById("older-preferred").addEventListener("click", () => {
+            if (age_preferred.includes("older") && document.getElementById("older-preferred").style.backgroundColor == "#888") {
+                document.getElementById("older-preferred").style.backgroundColor = "#333";
+                age_preferred.pop(age_preferred.indexOf("older"));
+            } else {
+                document.getElementById("older-preferred").style.backgroundColor = "#888";
+                age_preferred.push("older");
+            }
+        });
+
+        for (i of document.getElementsByClassName("subject")) {
+            i.addEventListener("click", (e) => {
+                if (selectedSubjects.includes(e.currentTarget.id)) {
+                    e.currentTarget.style.backgroundColor = "#333";
+                    selectedSubjects.pop(selectedSubjects.indexOf(e.currentTarget.id));
+                } else {
+                    e.currentTarget.style.backgroundColor = "#888";
+                    selectedSubjects.push(e.currentTarget.id);
+                }
+            });
+        }
+
+        let days = [[], [], [], [], [], [], []];
+        
+        for (i of document.getElementsByClassName("day")) {
+            i.addEventListener("click", (e) => {
+                let dayIndex = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].indexOf(e.currentTarget.id);
+                days[dayIndex] = [];
+                while (true) {
+                    let time = prompt("Enter one start time you are available for a 1-hour duration (e.g. 15:30). If all times have been entered, type DONE.");
+                    if (time == null) {
+                        if (days[dayIndex].length == 0) {
+                            e.currentTarget.style.backgroundColor = "orange";
+                            days[dayIndex].push("empty");
+                        } else {
+                            e.currentTarget.style.backgroundColor = "limegreen";
+                        }
+                        break;
+                    } else if (time.toLowerCase() == "done" || time == "") {
+                        if (days[dayIndex].length == 0) {
+                            e.currentTarget.style.backgroundColor = "orange";
+                            days[dayIndex].push("empty");
+                        } else {
+                            e.currentTarget.style.backgroundColor = "limegreen";
+                        }
+                        break;
+                    } else if (time) {
+                        days[dayIndex].push(time);
+                    }
+                }
+                alert("Added!")
+            });
+        }
+    </script>
+</body>
+</html>

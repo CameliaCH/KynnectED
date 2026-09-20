@@ -1,4 +1,4 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -11,7 +11,8 @@
     <nav class="topbar-links">
       <a href="{{ url_for('learning_resources') }}" class="nav-link">Learning Resources</a>
     </nav>
-    <a href="#" class="btn-signin">Sign in / Log in</a>
+    <a href="/login" class="btn-signin">Log In</a>
+    <a href="/signup" class="btn-signin">Sign Up</a>
   </header>
 
   {% block content %}{% endblock %}
@@ -27,7 +28,8 @@
     <nav class="footer-nav">
       <a href="{{ url_for('contact') }}">Contact</a>
       <a href="{{ url_for('learning_resources') }}">Learning Resources</a>
-      <a href="#">Sign in / Log in</a>
+      <a href="/login" class="btn-signin">Log In</a>
+      <a href="/signup" class="btn-signin">Sign Up</a>
     </nav>
 
     <div class="footer-social">
