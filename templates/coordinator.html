@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Coordinator Dashboard &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+  <main class="page-hero">
+    <h1>Coordinator dashboard</h1>
+    <p class="tagline">Welcome, {{ current_user.name | first | default(current_user.username, true) }}. Bring mentors and mentees together.</p>
+  </main>
+  <section class="page-body workspace-body">
+    {% include "coordinator_nav.html" %}
+    <div class="workspace-stats">
+      <div class="workspace-stat"><strong>{{ mentors | length }}</strong><span>Mentors</span></div>
+      <div class="workspace-stat"><strong>{{ mentees | length }}</strong><span>Mentees</span></div>
+      <div class="workspace-stat"><strong>{{ pairs | length }}</strong><span>Active pairings</span></div>
+      <div class="workspace-stat"><strong>{{ unpaired }}</strong><span>People without a pairing</span></div>
+    </div>
+    <div class="workspace-grid">
+      <section class="workspace-panel">
+        <h2>Make a connection</h2>
+        <p>Review each person's subjects, preferences, and availability, then choose who to connect. Both mentors and mentees can have multiple pairings.</p>
+        <a class="btn-signin" href="{{ url_for('pairings') }}">Manage pairings</a>
+      </section>
+      <section class="workspace-panel">
+        <h2>Participant records</h2>
+        <p>Browse separate mentor and mentee tables, including their linked account IDs. Download the latest CSVs whenever you need them.</p>
+        <a class="btn-signin" href="{{ url_for('export') }}">View records &amp; CSVs</a>
+      </section>
+      <section class="workspace-panel">
+        <h2>Lesson quality &amp; attendance</h2>
+        <p>Watch session recordings, review lesson quality, and see each participant's completed learning hours and upcoming lessons.</p>
+        <a class="btn-signin" href="{{ url_for('learning.monitor') }}">Review lessons &amp; recordings</a>
+      </section>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,6 @@
+<nav class="workspace-nav" aria-label="Coordinator pages">
+  <a href="{{ url_for('coordinator') }}" {% if request.endpoint == 'coordinator' %}aria-current="page"{% endif %}>Overview</a>
+  <a href="{{ url_for('pairings') }}" {% if request.endpoint == 'pairings' %}aria-current="page"{% endif %}>Pairings</a>
+  <a href="{{ url_for('export') }}" {% if request.endpoint == 'export' %}aria-current="page"{% endif %}>Records &amp; CSVs</a>
+  <a href="{{ url_for('learning.monitor') }}" {% if request.endpoint == 'learning.monitor' %}aria-current="page"{% endif %}>Lessons &amp; recordings</a>
+</nav>

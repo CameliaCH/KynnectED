@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Your Dashboard &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+  <main class="page-hero">
+    <h1>Your dashboard</h1>
+    <p class="tagline">Welcome, {{ current_user.name | first | default(current_user.username, true) }}.</p>
+  </main>
+  <section class="page-body workspace-body">
+    {% if current_user.is_coordinator %}
+      <p class="workspace-intro">You have Coordinator access. <a href="{{ url_for('coordinator') }}">Manage participant records and pairings &rarr;</a></p>
+    {% endif %}
+    <div class="workspace-stats">
+      <div class="workspace-stat"><strong>{{ '%.2f' | format(activity.hours) }}</strong><span>Completed learning hours</span></div>
+      <div class="workspace-stat"><strong>{{ activity.completed }}</strong><span>Sessions with attendance</span></div>
+      <div class="workspace-stat"><strong>{{ activity.upcoming | length }}</strong><span>Upcoming / ongoing lessons</span></div>
+      <div class="workspace-stat"><strong>{{ connections | length }}</strong><span>Active pairings</span></div>
+    </div>
+    <p class="availability-help">Learning hours come from uploaded recordings. Uploading a recording marks both participants present. Replacing it updates the same session.</p>
+    <section class="dashboard-upcoming" aria-labelledby="next-lessons-heading">
+      <h2 id="next-lessons-heading">Your next lessons</h2>
+      <p class="availability-help">Times shown in {{ timezone }} (UTC+8).</p>
+      {% for lesson in activity.upcoming[:5] %}
+        <article class="workspace-panel lesson-row">
+          <div><span class="workspace-label">{{ lesson.status }} · {{ lesson.start_label }}</span><h3>{{ lesson.title }}</h3>
+            <p>{{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }} · {{ lesson.planned_minutes }} minutes</p></div>
+          <div class="lesson-actions">
+            <a class="btn-signin" href="{{ lesson.zoom_url }}" target="_blank" rel="noopener noreferrer">Join Zoom</a>
+            <a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id) }}">Open pairing</a>
+          </div>
+        </article>
+      {% else %}<p>No lessons scheduled yet. Open a pairing to see its sessions.</p>{% endfor %}
+    </section>
+    <h2>Your pairings</h2>
+    <p>Open a pairing to access lessons, recordings, attendance, and your private chat.</p>
+    <div class="workspace-grid">
+      {% for connection in connections %}
+        {% set partner = connection.user %}
+        <a class="workspace-panel pairing-card" href="{{ url_for('learning.room', mentor_id=connection.mentor_id, mentee_id=connection.mentee_id) }}">
+          <span class="workspace-label">{{ partner.role | title }}</span>
+          <h3>{{ partner.name | join(' ') }}</h3>
+          <p class="participant-username">@{{ partner.username }}</p>
+          <p><strong>Subjects:</strong> {{ partner.subjects | join(', ') | title }}</p>
+          <p>{{ '%.2f' | format(connection.hours) }} learning hours · {{ connection.completed }} recorded sessions</p>
+          <span class="card-link">Open pairing &rarr;</span>
+        </a>
+      {% else %}
+        <div class="workspace-panel workspace-empty">
+          <h3>Your connections will appear here</h3>
+          <p>Once a coordinator links you with a mentor or mentee, you'll see them on your dashboard.</p>
+        </div>
+      {% endfor %}
+    </div>
+    <p class="workspace-intro"><a href="{{ url_for('learning_resources') }}">Explore learning resources &rarr;</a></p>
+  </section>
+{% endblock %}

@@ -1,51 +1,48 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Exported CSV Data</title>
-    <style>
-        body {
-            font-family: Arial, Helvetica, sans-serif;
-        }
+{% extends "base.html" %}
 
-        table {
-            border-collapse: collapse;
-            width: 100%;
-        }
+{% block title %}Exported CSV Data &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
 
-        th, td {
-            border: 1px solid #ccc;
-            padding: 8px;
-            text-align: left;
-        }
-
-        th {
-            background: #f2f2f2;
-        }
-    </style>
-</head>
-<body>
+{% block content %}
+  <main class="page-hero">
     <h1>Table View</h1>
-
-    <table>
-        <thead>
-            <tr>
-                {% for header in headers %}
-                    <th>{{ header }}</th>
-                {% endfor %}
-            </tr>
-        </thead>
-        <tbody>
-            {% for row in rows %}
-                <tr>
-                    {% for cell in row %}
-                        <td>{{ cell }}</td>
-                    {% endfor %}
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-    <h1>Raw CSV</h1>
-    <pre>{{ raw }}</pre>
-</body>
-</html>
+    <p class="tagline">Mentees and mentors, with a separate CSV download for each.</p>
+  </main>
+  <section class="page-body export-body">
+    {% include "coordinator_nav.html" %}
+    {% for group in groups %}
+    <section class="export-group" aria-labelledby="{{ group.slug }}-heading">
+      <div class="export-group-header">
+        <h2 id="{{ group.slug }}-heading">{{ group.label }} <span class="export-count">({{ group.rows | length }})</span></h2>
+        <a class="btn-signin" href="{{ url_for('export_csv', group=group.slug) }}">Download {{ group.label }} CSV</a>
+      </div>
+    <div class="table-scroll" role="region" aria-label="{{ group.label }} data" tabindex="0">
+      <table>
+          <thead>
+              <tr>
+                  {% for header in group.headers %}
+                      <th scope="col">{{ header }}</th>
+                  {% endfor %}
+              </tr>
+          </thead>
+          <tbody>
+              {% for row in group.rows %}
+                  <tr>
+                      {% for cell in row %}
+                          <td>{{ cell }}</td>
+                      {% endfor %}
+                  </tr>
+              {% else %}
+                  <tr><td colspan="{{ group.headers | length }}">No {{ group.label | lower }} registered yet.</td></tr>
+              {% endfor %}
+          </tbody>
+      </table>
+    </div>
+      <details class="export-raw">
+        <summary>Raw {{ group.label }} CSV</summary>
+        <pre>{{ group.raw }}</pre>
+      </details>
+    </section>
+    {% endfor %}
+  </section>
+{% endblock %}

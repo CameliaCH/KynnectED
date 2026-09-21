@@ -1,160 +1,24 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Log In &middot; KynnectED</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=IBM Plex Sans:ital,wght@0,300..700;1,300..900&display=swap');
+{% extends "base.html" %}
 
-        body {
-            background: #121212;
-            color: white;
-            font-family: 'IBM Plex Sans', sans-serif;
-        }
+{% block title %}Log In &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
 
-        .container {
-            border: 3px solid white;
-            padding: 10px;
-            width: 20vw;
-            height: 90vh;
-            line-height: 0.4;
-        }
-
-        input[type="text"], input[type="password"], input[type="number"] {
-            border: none;
-            background: none;
-            outline: none;
-            color: white;
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 2vw;
-            border-bottom: 0.3vw solid #888;
-        }
-
-        input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus {
-            border: none;
-            background: none;
-            outline: none;
-            color: white;
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 2vw;
-        }
-
-        .input-container {
-            cursor: text;
-            position: relative;
-            width: 50%;
-            border-bottom: 2px solid #ccc;
-        }
-
-        .input-container input {
-            width: 100%;
-            padding: 10px 0;
-            border: none;
-            outline: none;
-            background: transparent;
-        }
-
-        .input-container::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(to right, #3498db 50%, transparent 50%);
-            background-size: 200% 100%;
-            background-position: right bottom;
-            transition: background-position 0.4s ease-in;
-        }
-
-        .input-container:hover::after {
-            background-position: left bottom;
-        }
-
-        .input-container:focus-within::after {
-            background-position: left bottom;
-        }
-
-        button {
-            border: none;
-            outline: none;
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 3vw;
-            background-color: white;
-            transition: background-color 140ms ease-in;
-        }
-
-        button:hover {
-            cursor: pointer;
-            background-color: #3498db;
-        }
-
-        button:disabled:hover {
-            cursor: not-allowed;
-            background-color: #888;
-        }
-
-        #part1, #part2 {
-            display: flex;
-        }
-
-        #part2{
-            width: 90vw;
-            height: 15vw;
-        }
-
-        .subject, .role, .day, .gender-own, .gender-preferred, .age-preferred {
-            background-color: #333;
-            border-radius: 3vw;
-            justify-content: center;
-            display: flex;
-            align-items: flex-end;
-            font-size: 3vh;
-            cursor: pointer;
-        }
-
-        #overlay {
-            position: absolute;
-            margin: auto;
-            width: 100%;
-            height: 100%;
-            background-color: #121212;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease-in-out;
-            z-index: 10;
-        }
-        #overlay.visible {
-            opacity: 1;
-        }
-        #error {
-            display: none;
-            color: orange;
-        }
-        #error.show {
-            display: block;
-        }
-        #pw-dont-match {
-            display: none;
-            color: orange;
-        }
-        #pw-dont-match.show {
-            display: block;
-        }
-    </style>
-</head>
-<body>
+{% block content %}
+  <main class="page-hero">
     <h1>Welcome back!</h1>
-    <form action="/login-process" method="post">
-        <div class="input-container">
-            <input type="text" placeholder="Username" name="username" id="username" autocomplete="off">
-        </div>
-        &nbsp;&nbsp;
-        <div class="input-container">
-            <input type="password" placeholder="Password" name="password" id="password" autocomplete="off">
-        </div><br>
-        <button type="submit">Submit</button>
-    </form><br>
-    <h2 style="font-size: 2vw;">Don't have an account? <a href="/signup"><button style="font-size: 2vw;">Sign Up</button></a></h2>
-</body>
+  </main>
+
+  <section class="page-body">
+    <form class="account-form login-form" action="/login-process" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div class="input-container">
+        <input type="text" placeholder="Username" aria-label="Username" name="username" id="username" autocomplete="off">
+      </div>
+      <div class="input-container">
+        <input type="password" placeholder="Password" aria-label="Password" name="password" id="password" autocomplete="off">
+      </div>
+      <button type="submit" class="btn-signin">Submit</button>
+    </form>
+    <p class="account-switch">Don't have an account? <a href="/signup">Sign Up</a></p>
+  </section>
+{% endblock %}

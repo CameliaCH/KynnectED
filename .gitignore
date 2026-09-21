@@ -1,0 +1,4 @@
+__pycache__/
+*.py[cod]
+instance/
+users.json.lock

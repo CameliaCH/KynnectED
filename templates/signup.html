@@ -1,315 +1,166 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up &middot; KynnectED</title>
-    <style>
-        @import url('https://fonts.googleapis.com/css2?family=IBM Plex Sans:ital,wght@0,300..700;1,300..900&display=swap');
+{% extends "base.html" %}
 
-        body {
-            background: #121212;
-            color: white;
-            font-family: 'IBM Plex Sans', sans-serif;
-        }
+{% block title %}Sign Up &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
 
-        .container {
-            border: 3px solid white;
-            padding: 10px;
-            width: 20vw;
-            height: 90vh;
-            line-height: 0.4;
-        }
-
-        input[type="text"], input[type="password"], input[type="number"] {
-            border: none;
-            background: none;
-            outline: none;
-            color: white;
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 1.6vw;
-            border-bottom: 0.3vw solid #888;
-        }
-
-        input[type="text"]:focus, input[type="password"]:focus, input[type="number"]:focus {
-            border: none;
-            background: none;
-            outline: none;
-            color: white;
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 1.6vw;
-        }
-
-        .input-container {
-            cursor: text;
-            position: relative;
-            width: 50%;
-            border-bottom: 2px solid #ccc;
-        }
-
-        .input-container input {
-            width: 100%;
-            padding: 10px 0;
-            border: none;
-            outline: none;
-            background: transparent;
-        }
-
-        .input-container::after {
-            content: '';
-            position: absolute;
-            bottom: -2px;
-            left: 0;
-            width: 100%;
-            height: 4px;
-            background: linear-gradient(to right, #3498db 50%, transparent 50%);
-            background-size: 200% 100%;
-            background-position: right bottom;
-            transition: background-position 0.4s ease-in;
-        }
-
-        .input-container:hover::after {
-            background-position: left bottom;
-        }
-
-        .input-container:focus-within::after {
-            background-position: left bottom;
-        }
-
-        button {
-            border: none;
-            outline: none;
-            font-family: 'IBM Plex Sans', sans-serif;
-            font-size: 3vw;
-            background-color: white;
-            transition: background-color 140ms ease-in;
-        }
-
-        button:hover {
-            cursor: pointer;
-            background-color: #3498db;
-        }
-
-        button:disabled:hover {
-            cursor: not-allowed;
-            background-color: #888;
-        }
-
-        #part1, #part2 {
-            display: flex;
-        }
-
-        #part2{
-            width: 90vw;
-            height: 15vw;
-        }
-
-        .subject, .role, .day, .gender-own, .gender-preferred, .age-preferred {
-            background-color: #333;
-            border-radius: 3vw;
-            justify-content: center;
-            display: flex;
-            align-items: flex-end;
-            font-size: 3vh;
-            cursor: pointer;
-            width: 15vw;
-            height: 15vw;
-        }
-
-        #overlay {
-            position: absolute;
-            margin: auto;
-            width: 100%;
-            height: 100%;
-            background-color: #121212;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.5s ease-in-out;
-            z-index: 10;
-        }
-        #overlay.visible {
-            opacity: 1;
-        }
-        #error {
-            display: none;
-            color: orange;
-        }
-        #error.show {
-            display: block;
-        }
-        #pw-dont-match {
-            display: none;
-            color: orange;
-        }
-        #pw-dont-match.show {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-    <h1>Welcome to KynnectED!</h1>
-    <form action="/signup-process" method="post">
+{% block content %}
+{% set availability_preview = request.args.get("preview") == "availability" %}
+  <main class="page-hero">
+    <h1>{% if availability_preview %}Try the availability picker{% else %}Welcome to KynnectED!{% endif %}</h1>
+    {% if availability_preview %}<p class="tagline">Preview only — try selecting times and continue through the next steps without creating an account.</p>{% endif %}
+  </main>
+  <section class="page-body signup-body">
+    <form class="account-form signup-form" action="/signup-process" method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <div id="overlay"></div>
         <h2 id="question">We need a bit of information about you before your account can be created.</h2>
         <h3 id="error">Please fill in all fields.</h3>
         <h3 id="pw-dont-match">Your passwords do not match.</h3>
-        <div id="part1">
+        <div id="part1" class="signup-fields">
             <div class="input-container">
-                <input type="text" placeholder="Username" name="username" id="username" autocomplete="off">
+                <input type="text" placeholder="Username" aria-label="Username" name="username" id="username" autocomplete="off">
             </div>
-            &nbsp;&nbsp;
+
             <div class="input-container">
-                <input type="text" placeholder="First name" name="firstname" id="firstname" autocomplete="off">
+                <input type="text" placeholder="First name" aria-label="First name" name="firstname" id="firstname" autocomplete="off">
             </div>
-            &nbsp;&nbsp;
+
             <div class="input-container">
-                <input type="text" placeholder="Surname" name="surname" id="surname" autocomplete="off">
+                <input type="text" placeholder="Surname" aria-label="Surname" name="surname" id="surname" autocomplete="off">
             </div>
-            &nbsp;&nbsp;
+
             <div class="input-container">
-                <input type="number" placeholder="Age" name="age" id="age" autocomplete="off">
+                <input type="number" placeholder="Age" aria-label="Age" name="age" id="age" autocomplete="off">
             </div>
-            &nbsp;&nbsp;
+
             <div class="input-container">
-                <input type="password" placeholder="Password" name="password" id="password" autocomplete="off">
+                <input type="password" placeholder="Password" aria-label="Password" name="password" id="password" autocomplete="off">
             </div>
-            &nbsp;&nbsp;
+
             <div class="input-container">
-                <input type="password" placeholder="Re-type Password" name="confirm-password" id="confirm-password" autocomplete="off">
+                <input type="password" placeholder="Re-type Password" aria-label="Re-type Password" name="confirm-password" id="confirm-password" autocomplete="off">
             </div>
         </div>
 
-        
-        <span id="part2" style="display: none;">
-            <br>
+        <span class="signup-options" id="part2" style="display: none;">
             <span class="role" id="mentor">
-                <img src="/static/img/mentor.png" width="100%">
+                <img src="/static/img/mentor.png" width="100%" alt="Mentor">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="role" id="mentee">
-                <img src="/static/img/mentee.png" width="100%">
+                <img src="/static/img/mentee.png" width="100%" alt="Mentee">
             </span>
         </span>
-        
-        <span id="part3" style="display: none;">
-            <br>
+
+        <span class="signup-options" id="part3" style="display: none;">
             <span class="subject" id="maths">
-                <img src="/static/img/maths.png" width="100%">
+                <img src="/static/img/maths.png" width="100%" alt="Maths">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="subject" id="english">
-                <img src="/static/img/english.png" width="100%">
+                <img src="/static/img/english.png" width="100%" alt="English">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="subject" id="malay">
-                <img src="/static/img/malay.png" width="100%">
+                <img src="/static/img/malay.png" width="100%" alt="Malay">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="subject" id="mandarin">
-                <img src="/static/img/mandarin.png" width="100%">
+                <img src="/static/img/mandarin.png" width="100%" alt="Mandarin">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="subject" id="science">
-                <img src="/static/img/science.png" width="100%">
+                <img src="/static/img/science.png" width="100%" alt="Science">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="subject" id="art">
-                <img src="/static/img/art.png" width="100%">
+                <img src="/static/img/art.png" width="100%" alt="Art">
             </span>
         </span>
-        
-        <span id="part4" style="display: none;">
-            <span class="day" id="sunday">
-                <img src="/static/img/sunday.png" width="100%">
-            </span>
-            &nbsp;
-            &nbsp;
-            <span class="day" id="monday">
-                <img src="/static/img/monday.png" width="100%"> 
-            </span>
-            &nbsp;
-            &nbsp;
-            <span class="day" id="tuesday">
-                <img src="/static/img/tuesday.png" width="100%">
-            </span>
-            &nbsp;
-            &nbsp;
-            <span class="day" id="wednesday">
-                <img src="/static/img/wednesday.png" width="100%">
-            </span>
-            &nbsp;
-            &nbsp;
-            <span class="day" id="thursday">
-                <img src="/static/img/thursday.png" width="100%">
-            </span>
-            &nbsp;
-            &nbsp;
-            <span class="day" id="friday">
-                <img src="/static/img/friday.png" width="100%">
-            </span>
-            &nbsp;
-            &nbsp;
-            <span class="day" id="saturday">
-                <img src="/static/img/saturday.png" width="100%">
-            </span>
-        </span>
-        
-        <span id="part5" style="display: none;">
+
+        <div id="part4" class="availability-picker" style="display: none;">
+            <div class="availability-days" role="group" aria-label="Choose a day"></div>
+            <div class="availability-layout">
+                <section class="availability-editor" aria-labelledby="availability-day-heading">
+                    <h3 id="availability-day-heading"></h3>
+                    <p class="availability-help">Select all the one-hour sessions that work for you. Times use your local time.</p>
+                    <button type="button" class="availability-unavailable" aria-pressed="false">Unavailable this day</button>
+                    <div class="availability-slots" role="group" aria-label="Available one-hour sessions"></div>
+                    <div class="availability-custom">
+                        <label for="availability-start">Custom start time</label>
+                        <div class="availability-custom-row">
+                            <input id="availability-start" type="time" step="60" aria-describedby="availability-custom-help">
+                            <button type="button" class="btn-signin" id="availability-add">Add time</button>
+                        </div>
+                        <p id="availability-custom-help" class="availability-help">For example, 15:30 adds a 15:30–16:30 session.</p>
+                        <p id="availability-time-error" class="form-error" role="alert" hidden>Choose a valid start time first.</p>
+                    </div>
+                    <details class="availability-copy">
+                        <summary>Copy to other days</summary>
+                        <p class="availability-help">Replaces availability on the days you select below.</p>
+                        <div class="availability-copy-days"></div>
+                        <button type="button" class="btn-signin" id="availability-copy-button" disabled>Copy selected times</button>
+                    </details>
+                </section>
+                <section class="availability-summary" aria-labelledby="availability-summary-heading">
+                    <h3 id="availability-summary-heading">Your weekly availability</h3>
+                    <p class="availability-help">Your selections appear here. Select a day to edit it, or × to remove a time.</p>
+                    <div id="availability-week"></div>
+                    <p id="availability-progress" class="availability-help"></p>
+                </section>
+            </div>
+            <p id="availability-status" class="availability-status" role="status" aria-live="polite"></p>
+        </div>
+
+        <span class="signup-options" id="part5" style="display: none;">
             <span class="gender-own" id="male-own">
-                <img src="/static/img/male.png" width="100%">
+                <img src="/static/img/male.png" width="100%" alt="Male">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="gender-own" id="female-own">
-                <img src="/static/img/female.png" width="100%"> 
+                <img src="/static/img/female.png" width="100%" alt="Female">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="gender-own" id="other-own">
-                <img src="/static/img/other.png" width="100%"> 
+                <img src="/static/img/other.png" width="100%" alt="Other">
             </span>
         </span>
-        
-        <span id="part6" style="display: none;">
+
+        <span class="signup-options" id="part6" style="display: none;">
             <span class="gender-preferred" id="same-preferred">
-                <img src="/static/img/same.png" width="100%">
+                <img src="/static/img/same.png" width="100%" alt="Same">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="gender-preferred" id="opposite-preferred">
-                <img src="/static/img/opposite.png" width="100%"> 
+                <img src="/static/img/opposite.png" width="100%" alt="Opposite">
             </span>
         </span>
-        
-        <span id="part7" style="display: none;">
+
+        <span class="signup-options" id="part7" style="display: none;">
             <span class="age-preferred" id="older-preferred">
-                <img src="/static/img/older.png" width="100%">
+                <img src="/static/img/older.png" width="100%" alt="Older">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="age-preferred" id="same-age-preferred">
-                <img src="/static/img/same-age.png" width="100%"> 
+                <img src="/static/img/same-age.png" width="100%" alt="Same age">
             </span>
-            &nbsp;
-            &nbsp;
+
             <span class="age-preferred" id="younger-preferred">
-                <img src="/static/img/younger.png" width="100%">
+                <img src="/static/img/younger.png" width="100%" alt="Younger">
             </span>
         </span>
-        
-        <br>
-        <button type="button" id="back" onclick="backsection();" disabled>Back</button>
-        <button type="button" id="next" onclick="nextsection();">Next</button>
-    </form><br>
-    <h2 style="font-size: 2vw;">Already own an account? <a href="/login"><button style="font-size: 2vw;">Log In</button></a></h2>
+
+        <p id="preview-complete" role="status" hidden>Preview complete. No account was created. You can go back to change your selections.</p>
+        <div class="form-actions">
+            <button class="btn-signin" type="button" id="back" onclick="backsection();" disabled>Back</button>
+            <button class="btn-signin" type="button" id="next" onclick="nextsection();">Next</button>
+        </div>
+    </form>
+    <p class="account-switch">Already own an account? <a href="/login">Log In</a></p>
+  </section>
 
     <script>
+        const availabilityPreview = {{ availability_preview | tojson }};
         const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
         let selectedSubjects = [];
         let gender_own = "none";
@@ -317,6 +168,7 @@
         let age_preferred = [];
 
         const nextsection = () => {
+            if (document.getElementById("next").disabled) return;
             if (document.getElementById("part1").style.display != "none") {
                 if (document.getElementById("password").value != document.getElementById("confirm-password").value) {
                     document.getElementById("pw-dont-match").classList.add("show");
@@ -385,7 +237,8 @@
                 setTimeout(() => {
                     document.getElementById("part3").style.display = "none";
                     document.getElementById("part4").style.display = "flex";
-                    document.getElementById("question").innerHTML = "Now, let's figure out your schedule. Click each day and add your available times."
+                    document.getElementById("back").disabled = availabilityPreview;
+                    document.getElementById("question").innerHTML = "Now, let's figure out your schedule. Select your available times for each day."
                     document.getElementById("overlay").classList.remove("visible");
                     document.getElementById("error").classList.remove("show");
                 }, 500);
@@ -402,6 +255,7 @@
                 setTimeout(() => {
                     document.getElementById("part4").style.display = "none";
                     document.getElementById("part5").style.display = "flex";
+                    document.getElementById("back").disabled = false;
                     document.getElementById("question").innerHTML = "What is your gender?"
                     document.getElementById("overlay").classList.remove("visible");
                     document.getElementById("error").classList.remove("show");
@@ -446,11 +300,11 @@
                     document.getElementById("part7").style.display = "flex";
                     document.getElementById("question").innerHTML = "What age range would you prefer to be matched with? (You can choose more than one option)"
                     document.getElementById("overlay").classList.remove("visible");
-                    document.getElementById("next").innerHTML = "Sign up";
+                    document.getElementById("next").textContent = availabilityPreview ? "Finish preview" : "Sign up";
                     document.getElementById("error").classList.remove("show");
                 }, 500);
             }
-            if (document.getElementById("next").innerHTML == "Sign up") {
+            if (document.getElementById("part7").style.display != "none") {
                 age_preferred = [];
                 for (i of document.getElementsByClassName("age-preferred")) {
                     if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
@@ -458,11 +312,19 @@
                     }
                 }
                 if (age_preferred.length == 0) {
-                    document.getElementById("error").innerHTML = "Please select your age preference first before pressing 'Sign up'.";
+                    document.getElementById("error").textContent = availabilityPreview
+                        ? "Please select your age preference before finishing the preview."
+                        : "Please select your age preference first before pressing 'Sign up'.";
                     document.getElementById("error").classList.add("show");
                     return;
                 }
-                let data = new URLSearchParams({ username: document.getElementById("username").value, firstname: document.getElementById("firstname").value, surname: document.getElementById("surname").value, age: document.getElementById("age").value, password: document.getElementById("password").value, role: role, selectedSubjects: JSON.stringify(selectedSubjects), gender_own: gender_own, gender_preferred: JSON.stringify(gender_preferred), age_preferred: JSON.stringify(age_preferred), days: JSON.stringify(days)});
+                if (availabilityPreview) {
+                    document.getElementById("error").classList.remove("show");
+                    document.getElementById("preview-complete").hidden = false;
+                    document.getElementById("next").disabled = true;
+                    return;
+                }
+                let data = new URLSearchParams({ _csrf_token: document.querySelector('.signup-form input[name="_csrf_token"]').value, username: document.getElementById("username").value, firstname: document.getElementById("firstname").value, surname: document.getElementById("surname").value, age: document.getElementById("age").value, password: document.getElementById("password").value, role: role, selectedSubjects: JSON.stringify(selectedSubjects), gender_own: gender_own, gender_preferred: JSON.stringify(gender_preferred), age_preferred: JSON.stringify(age_preferred), days: JSON.stringify(days)});
                 fetch('/signup-process', { method: 'POST', body: data }).then(response => response.json())
                 .then(data => {
                     if (data.error == "none") location.href = "/login";
@@ -474,6 +336,9 @@
 
 
         const backsection = () => {
+            if (availabilityPreview && document.getElementById("part4").style.display != "none") return;
+            document.getElementById("next").disabled = false;
+            document.getElementById("preview-complete").hidden = true;
             if (document.getElementById("part7").style.display != "none") {
                 document.getElementById("overlay").classList.add("visible");
                 setTimeout(() => {
@@ -489,6 +354,7 @@
                 setTimeout(() => {
                     document.getElementById("part6").style.display = "none";
                     document.getElementById("part5").style.display = "flex";
+                    document.getElementById("back").disabled = false;
                     document.getElementById("question").innerHTML = "What is your gender?"
                     document.getElementById("overlay").classList.remove("visible");
                     document.getElementById("error").classList.remove("show");
@@ -498,7 +364,8 @@
                 setTimeout(() => {
                     document.getElementById("part5").style.display = "none";
                     document.getElementById("part4").style.display = "flex";
-                    document.getElementById("question").innerHTML = "Now, let's figure out your schedule. Click each day and add your available times."
+                    document.getElementById("back").disabled = availabilityPreview;
+                    document.getElementById("question").innerHTML = "Now, let's figure out your schedule. Select your available times for each day."
                     document.getElementById("overlay").classList.remove("visible");
                     document.getElementById("error").classList.remove("show");
                 }, 500);
@@ -643,35 +510,17 @@
 
         let days = [[], [], [], [], [], [], []];
         
-        for (i of document.getElementsByClassName("day")) {
-            i.addEventListener("click", (e) => {
-                let dayIndex = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"].indexOf(e.currentTarget.id);
-                days[dayIndex] = [];
-                while (true) {
-                    let time = prompt("Enter one start time you are available for a 1-hour duration (e.g. 15:30). If all times have been entered, type DONE.");
-                    if (time == null) {
-                        if (days[dayIndex].length == 0) {
-                            e.currentTarget.style.backgroundColor = "orange";
-                            days[dayIndex].push("empty");
-                        } else {
-                            e.currentTarget.style.backgroundColor = "limegreen";
-                        }
-                        break;
-                    } else if (time.toLowerCase() == "done" || time == "") {
-                        if (days[dayIndex].length == 0) {
-                            e.currentTarget.style.backgroundColor = "orange";
-                            days[dayIndex].push("empty");
-                        } else {
-                            e.currentTarget.style.backgroundColor = "limegreen";
-                        }
-                        break;
-                    } else if (time) {
-                        days[dayIndex].push(time);
-                    }
-                }
-                alert("Added!")
-            });
+    </script>
+    <script src="{{ url_for('static', filename='js/availability.js') }}"></script>
+    <script>
+        initializeAvailabilityPicker(days);
+        if (availabilityPreview) {
+            for (let step = 1; step <= 7; step++) {
+                document.getElementById(`part${step}`).style.display = step === 4 ? "flex" : "none";
+            }
+            document.getElementById("question").textContent = "Select your available times for each day.";
+            document.querySelector(".account-switch").hidden = true;
+            document.querySelector(".signup-form").addEventListener("submit", event => event.preventDefault());
         }
     </script>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Pairing Room &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+  <main class="page-hero">
+    <span class="workspace-label">Your pairing room</span>
+    <h1>{{ pair.mentor.name | first }} &amp; {{ pair.mentee.name | first }}</h1>
+    <p class="tagline">{{ pair.mentor.name | join(' ') }} (mentor) &amp; {{ pair.mentee.name | join(' ') }} (mentee)</p>
+  </main>
+  <div class="page-body workspace-body room-body">
+    <nav class="workspace-nav" aria-label="Pairing room sections">
+      <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      <a href="#lessons">Lessons</a><a href="#recordings">Recordings</a><a href="#chat">Chat</a>
+      {% if current_user.is_coordinator %}<a href="{{ url_for('learning.monitor') }}">Lesson monitoring</a>{% endif %}
+    </nav>
+    {% if not pair.active %}<p class="room-notice">This pairing is inactive. Its history is available to coordinators, but new lessons, recordings, and messages are disabled.</p>{% endif %}
+    <div class="workspace-stats room-stats">
+      <div class="workspace-stat"><strong>{{ '%.2f' | format(summary.hours) }}</strong><span>Learning hours together</span></div>
+      <div class="workspace-stat"><strong>{{ summary.completed }}</strong><span>Sessions with attendance</span></div>
+      <div class="workspace-stat"><strong>{{ recordings | length }}</strong><span>Session recordings</span></div>
+    </div>
+    <p class="availability-help">Completed hours use recording duration, not planned time. Attendance is recorded for both participants when a video is uploaded.</p>
+
+    <section id="lessons" class="room-section" aria-labelledby="lessons-heading">
+      <div class="section-heading"><h2 id="lessons-heading">Lessons</h2><span class="availability-help">{{ timezone }} (UTC+8)</span></div>
+      {% if pair.can_manage %}
+        <details class="workspace-panel lesson-add">
+          <summary>Add a lesson</summary>
+          <p>Paste the meeting link from Zoom. You can also add a past lesson to upload its recording.</p>
+          <form class="account-form lesson-form" action="{{ url_for('learning.create_lesson', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}" method="post">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            {% with lesson=none, field_prefix='new-lesson' %}{% include "lesson_fields.html" %}{% endwith %}
+            <button type="submit" class="btn-signin">Save lesson</button>
+          </form>
+        </details>
+      {% endif %}
+      {% for lesson in pending %}
+        <article class="workspace-panel lesson-card" id="lesson-{{ lesson.id }}">
+          <span class="workspace-label">{{ lesson.status }}</span>
+          <h3>{{ lesson.title }}</h3>
+          <p>{{ lesson.start_label }} · {{ lesson.planned_minutes }} minutes planned</p>
+          {% if pair.active %}<a class="btn-signin" href="{{ lesson.zoom_url }}" target="_blank" rel="noopener noreferrer">Open Zoom meeting</a>{% endif %}
+          {% if pair.can_manage %}
+            {% if lesson.can_upload %}<details class="lesson-tools"><summary>Upload recording &amp; mark attendance</summary>{% include "recording_upload.html" %}</details>
+            {% else %}<p class="availability-help lesson-tools">You can upload the recording after the lesson starts.</p>{% endif %}
+            <details class="lesson-tools"><summary>Edit lesson</summary>
+              <form class="account-form lesson-form" action="{{ url_for('learning.edit_lesson', lesson_id=lesson.id) }}" method="post">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                {% with field_prefix=lesson.id %}{% include "lesson_fields.html" %}{% endwith %}
+                <button type="submit" class="btn-signin">Save changes</button>
+              </form>
+            </details>
+            <form class="account-form lesson-tools" action="{{ url_for('learning.cancel_lesson', lesson_id=lesson.id) }}" method="post">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+              <button class="room-link-button" type="submit">Cancel lesson</button>
+            </form>
+          {% endif %}
+        </article>
+      {% else %}<p>No lessons awaiting a recording. {{ 'Add a lesson above to get started.' if pair.can_manage else 'Your mentor or coordinator will add your lessons here.' }}</p>{% endfor %}
+      {% if cancelled %}<details class="lesson-tools"><summary>Cancelled lessons ({{ cancelled | length }})</summary>
+        {% for lesson in cancelled %}<p>{{ lesson.title }} · {{ lesson.start_label }}</p>{% endfor %}
+      </details>{% endif %}
+    </section>
+
+    <section id="recordings" class="room-section" aria-labelledby="recordings-heading">
+      <h2 id="recordings-heading">Recordings &amp; attendance</h2>
+      {% for lesson in recordings %}
+        <article class="workspace-panel lesson-card">
+          <span class="workspace-label">Attendance recorded · Both participants present</span>
+          <h3>{{ lesson.title }}</h3>
+          <p>{{ lesson.start_label }} · {{ lesson.duration_label }} of recorded learning</p>
+          <video class="lesson-video" controls preload="metadata" aria-label="{{ lesson.title }} recording">
+            <source src="{{ url_for('learning.recording', lesson_id=lesson.id) }}" type="{{ lesson.recording_mimetype }}">
+            Your browser does not support this video. Use the download link below.
+          </video>
+          <a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id, download=1) }}">Download recording</a>
+          {% if pair.can_manage %}<details class="lesson-tools"><summary>Replace this recording</summary>
+            <p class="availability-help">This updates the existing session's hours; it does not add another attendance entry.</p>
+            {% include "recording_upload.html" %}
+          </details>{% endif %}
+          {% if current_user.is_coordinator %}
+            <details class="lesson-tools review-tools" {% if not lesson.reviewed_at %}open{% endif %}>
+              <summary>{{ 'Reviewed' if lesson.reviewed_at else 'Quality review needed' }}</summary>
+              <form class="account-form lesson-form" action="{{ url_for('learning.review_recording', lesson_id=lesson.id) }}" method="post">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="recording_version" value="{{ lesson.recording_filename }}">
+                <label for="review-{{ lesson.id }}">Coordinator notes (only coordinators can see these)</label>
+                <textarea id="review-{{ lesson.id }}" name="review_note" rows="3" maxlength="2000">{{ lesson.review_note or '' }}</textarea>
+                <button class="btn-signin" type="submit">{{ 'Update review' if lesson.reviewed_at else 'Mark reviewed' }}</button>
+              </form>
+            </details>
+          {% endif %}
+        </article>
+      {% else %}<p>Recordings will appear here after a lesson's video is uploaded.</p>{% endfor %}
+    </section>
+
+    <section id="chat" class="room-section workspace-panel" aria-labelledby="chat-heading"
+             data-messages-url="{{ url_for('learning.messages', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}" data-user-id="{{ current_user.id }}">
+      <h2 id="chat-heading">Pairing chat</h2>
+      <p class="availability-help">A conversation between {{ pair.mentor.name | first }} and {{ pair.mentee.name | first }}. Coordinators can view it for support.</p>
+      <button id="chat-older" type="button" class="room-link-button" {% if messages | length < 50 %}hidden{% endif %}>Load earlier messages</button>
+      <ol id="chat-messages" class="chat-messages" aria-label="Chat messages" aria-live="polite" aria-relevant="additions">
+        {% for message in messages %}
+          <li data-message-id="{{ message.id }}" class="chat-message {{ 'chat-own' if message.sender_id == current_user.id else '' }}">
+            <span class="chat-meta">{{ message.sender }} · {{ message.time }}</span><p>{{ message.body }}</p>
+          </li>
+        {% endfor %}
+      </ol>
+      <p id="chat-empty" class="availability-help" {% if messages %}hidden{% endif %}>No messages yet. Start the conversation.</p>
+      {% if pair.can_chat %}
+        <form id="chat-form" class="account-form lesson-form" action="{{ url_for('learning.messages', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}" method="post">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+          <label for="chat-message">Message</label>
+          <textarea id="chat-message" name="message" rows="3" required maxlength="2000" placeholder="Write a message to your pairing…"></textarea>
+          <button class="btn-signin" type="submit">Send message</button>
+        </form>
+      {% else %}<p class="availability-help">This chat is read-only for you.</p>{% endif %}
+      <p id="chat-status" class="availability-help" role="status"></p>
+    </section>
+  </div>
+  <script src="{{ url_for('static', filename='js/room.js') }}"></script>
+{% endblock %}

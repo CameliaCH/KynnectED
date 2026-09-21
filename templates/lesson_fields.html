@@ -1,0 +1,14 @@
+<div class="lesson-field-grid">
+  <label for="{{ field_prefix }}-title">Lesson title
+    <input id="{{ field_prefix }}-title" name="title" maxlength="120" required value="{{ lesson.title if lesson else '' }}" placeholder="e.g. Maths: quadratic equations">
+  </label>
+  <label for="{{ field_prefix }}-date">Date &amp; time (UTC+8)
+    <input id="{{ field_prefix }}-date" type="datetime-local" name="scheduled_at" required value="{{ lesson.datetime_input if lesson else now_input }}">
+  </label>
+  <label for="{{ field_prefix }}-duration">Planned duration (minutes)
+    <input id="{{ field_prefix }}-duration" type="number" name="planned_minutes" min="15" max="240" required value="{{ lesson.planned_minutes if lesson else 60 }}">
+  </label>
+  <label for="{{ field_prefix }}-zoom">Zoom meeting link
+    <input id="{{ field_prefix }}-zoom" type="url" name="zoom_url" maxlength="2000" required value="{{ lesson.zoom_url if lesson else '' }}" placeholder="https://zoom.us/j/…">
+  </label>
+</div>

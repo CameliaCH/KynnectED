@@ -178,7 +178,9 @@
             "same-age"
         ],
         "role": "mentee",
-        "partners": [],
+        "partners": [
+            5
+        ],
         "availability": {
             "sunday": [
                 "empty"
@@ -201,6 +203,154 @@
             "saturday": [
                 "14:00",
                 "15:30"
+            ]
+        }
+    },
+    {
+        "id": 5,
+        "username": "cameliach",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$jim24pEbixl+eXClczaeQQ$l5dJgm0sRZtzJRzfL2ARF3+RcvmKe1ttWFAB3rtlVIo",
+        "name": [
+            "Camelia",
+            "Chew"
+        ],
+        "subjects": [
+            "maths",
+            "english",
+            "mandarin",
+            "science"
+        ],
+        "age": 18,
+        "gender": "female",
+        "gender_preferred": [
+            "same",
+            "opposite"
+        ],
+        "age_preferred": [
+            "older",
+            "same-age",
+            "younger"
+        ],
+        "role": "mentor",
+        "partners": [
+            4,
+            7
+        ],
+        "availability": {
+            "sunday": [
+                "15:30"
+            ],
+            "monday": [
+                "empty"
+            ],
+            "tuesday": [
+                "empty"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "empty"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "empty"
+            ]
+        },
+        "is_coordinator": true
+    },
+    {
+        "id": 6,
+        "username": "cameliatest1",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$5dptvMCEjPiSULd5fENIBQ$C18QY2uqaDw2bG2UP38ZP909XRclA7/ZmjsVPDh/tyk",
+        "name": [
+            "Camelia",
+            "Test"
+        ],
+        "subjects": [
+            "maths",
+            "english"
+        ],
+        "age": 20,
+        "gender": "female",
+        "gender_preferred": [
+            "same"
+        ],
+        "age_preferred": [
+            "same-age"
+        ],
+        "role": "mentee",
+        "partners": [],
+        "availability": {
+            "sunday": [
+                "15:00"
+            ],
+            "monday": [
+                "08:00"
+            ],
+            "tuesday": [
+                "08:00"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "empty"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "empty"
+            ]
+        }
+    },
+    {
+        "id": 7,
+        "username": "cameliatest",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$mIW8ucAodJQpJl7jTFRyGQ$BI2p5TRstnuksJ6F3U5D9gcNIAeRmLtdnGFmr1/XjHY",
+        "name": [
+            "Camelia",
+            "Chew"
+        ],
+        "subjects": [
+            "maths"
+        ],
+        "age": 20,
+        "gender": "female",
+        "gender_preferred": [
+            "opposite"
+        ],
+        "age_preferred": [
+            "same-age"
+        ],
+        "role": "mentee",
+        "partners": [
+            5
+        ],
+        "availability": {
+            "sunday": [
+                "empty"
+            ],
+            "monday": [
+                "08:00"
+            ],
+            "tuesday": [
+                "08:00"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "empty"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "empty"
             ]
         }
     }

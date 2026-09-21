@@ -6,15 +6,27 @@
   <title>{% block title %}KynnectED{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
-<body>
+<body class="{% block body_class %}{% endblock %}">
   <header class="topbar">
     <nav class="topbar-links">
       <a href="{{ url_for('learning_resources') }}" class="nav-link">Learning Resources</a>
     </nav>
-    <a href="/login" class="btn-signin">Log In</a>
-    <a href="/signup" class="btn-signin">Sign Up</a>
+    {% if current_user %}
+      <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
+      {% if current_user.is_coordinator %}<a href="{{ url_for('coordinator') }}" class="nav-link">Coordinator</a>{% endif %}
+      <form class="logout-form" action="{{ url_for('logout') }}" method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn-signin">Log Out</button>
+      </form>
+    {% else %}
+      <a href="/login" class="btn-signin">Log In</a>
+      <a href="/signup" class="btn-signin">Sign Up</a>
+    {% endif %}
   </header>
 
+  {% for category, message in get_flashed_messages(with_categories=true) %}
+    <p class="site-notice" role="status">{{ message }}</p>
+  {% endfor %}
   {% block content %}{% endblock %}
 
   <footer class="site-footer">
@@ -28,8 +40,13 @@
     <nav class="footer-nav">
       <a href="{{ url_for('contact') }}">Contact</a>
       <a href="{{ url_for('learning_resources') }}">Learning Resources</a>
-      <a href="/login" class="btn-signin">Log In</a>
-      <a href="/signup" class="btn-signin">Sign Up</a>
+      {% if current_user %}
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        {% if current_user.is_coordinator %}<a href="{{ url_for('coordinator') }}">Coordinator</a>{% endif %}
+      {% else %}
+        <a href="/login" class="btn-signin">Log In</a>
+        <a href="/signup" class="btn-signin">Sign Up</a>
+      {% endif %}
     </nav>
 
     <div class="footer-social">

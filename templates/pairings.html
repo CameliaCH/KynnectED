@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Manage Pairings &middot; KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+  <main class="page-hero">
+    <h1>Manage pairings</h1>
+    <p class="tagline">Choose the connections that work for your community.</p>
+  </main>
+  <section class="page-body workspace-body export-body">
+    {% include "coordinator_nav.html" %}
+    <section class="workspace-panel">
+      <h2>Link a mentor and mentee</h2>
+      <p>Review both profiles before saving. Either person can have more than one pairing.</p>
+      <form class="account-form pairing-form" action="{{ url_for('save_pairing') }}" method="post">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="action" value="link">
+        <div class="workspace-grid">
+          <div>
+            <label for="mentor-id">Mentor</label>
+            <select id="mentor-id" name="mentor_id" required>
+              <option value="">Choose a mentor</option>
+              {% for mentor in mentors %}<option value="{{ mentor.id }}">{{ mentor.name | join(' ') }} (@{{ mentor.username }})</option>{% endfor %}
+            </select>
+            <div id="mentor-profile" class="participant-profile" aria-live="polite"><p>Select a mentor to see their profile.</p></div>
+          </div>
+          <div>
+            <label for="mentee-id">Mentee</label>
+            <select id="mentee-id" name="mentee_id" required>
+              <option value="">Choose a mentee</option>
+              {% for mentee in mentees %}<option value="{{ mentee.id }}">{{ mentee.name | join(' ') }} (@{{ mentee.username }})</option>{% endfor %}
+            </select>
+            <div id="mentee-profile" class="participant-profile" aria-live="polite"><p>Select a mentee to see their profile.</p></div>
+          </div>
+        </div>
+        <button class="btn-signin" type="submit" {% if not mentors or not mentees %}disabled{% endif %}>Save pairing</button>
+        {% if not mentors or not mentees %}<p>At least one mentor and one mentee must sign up before you can create a pairing.</p>{% endif %}
+      </form>
+    </section>
+    <section class="pairings-list" aria-labelledby="active-pairings-heading">
+      <h2 id="active-pairings-heading">Active pairings <span class="export-count">({{ pairs | length }})</span></h2>
+      {% if pairs %}
+        <div class="table-scroll" role="region" aria-label="Active pairings" tabindex="0">
+          <table>
+            <thead><tr><th scope="col">Mentor</th><th scope="col">Mentee</th><th scope="col">Action</th></tr></thead>
+            <tbody>
+              {% for pair in pairs %}
+                <tr>
+                  <td>{{ pair.mentor.name | join(' ') }}<span class="participant-username">@{{ pair.mentor.username }}</span></td>
+                  <td>{{ pair.mentee.name | join(' ') }}<span class="participant-username">@{{ pair.mentee.username }}</span></td>
+                  <td>
+                    <a class="room-text-link" href="{{ url_for('learning.room', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}">Open room</a>
+                    <form class="account-form" action="{{ url_for('save_pairing') }}" method="post">
+                      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+                      <input type="hidden" name="action" value="unlink">
+                      <input type="hidden" name="mentor_id" value="{{ pair.mentor.id }}">
+                      <input type="hidden" name="mentee_id" value="{{ pair.mentee.id }}">
+                      <button class="btn-signin" type="submit" aria-label="Unlink {{ pair.mentor.username }} and {{ pair.mentee.username }}">Unlink</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <p class="availability-help">Unlink removes this connection from both accounts. You can link them again at any time.</p>
+      {% else %}
+        <p>No pairings yet. Choose a mentor and mentee above to create your first connection.</p>
+      {% endif %}
+    </section>
+  </section>
+  <script id="pairing-profiles" type="application/json">{{ profiles | tojson }}</script>
+  <script src="{{ url_for('static', filename='js/pairings.js') }}"></script>
+{% endblock %}

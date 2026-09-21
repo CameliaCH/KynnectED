@@ -1,0 +1,10 @@
+<form class="account-form recording-upload" action="{{ url_for('learning.upload_recording', lesson_id=lesson.id) }}" method="post" enctype="multipart/form-data"
+      data-return-url="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='recordings') }}">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <label for="recording-{{ lesson.id }}">{{ 'Replace recording' if lesson.recorded_at else 'Upload Zoom recording' }}</label>
+  <input type="file" name="recording" id="recording-{{ lesson.id }}" accept="video/mp4,video/webm,.mp4,.webm" required>
+  <p class="availability-help">MP4 (H.264) or WebM, up to {{ max_upload_mb }} MB. A successful upload marks both participants present and counts the video's duration as learning time.</p>
+  <button class="btn-signin" type="submit">{{ 'Replace recording' if lesson.recorded_at else 'Upload & mark attendance' }}</button>
+  <progress class="upload-progress" max="100" value="0" hidden aria-label="Recording upload progress"></progress>
+  <p class="upload-status" role="status" aria-live="polite"></p>
+</form>
