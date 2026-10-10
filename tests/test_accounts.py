@@ -121,6 +121,38 @@ class AccountTests(unittest.TestCase):
         self.post_pair(1, 3, "unlink")
         self.assertEqual(accounts, {user["id"]: user for user in read_accounts(self.path)})
 
+    def test_pairings_displays_current_matching_results_without_saving(self):
+        self.authenticate()
+        with edit_accounts(self.path) as users:
+            users[0]["name"] = ["<script>alert(1)</script>", "Example"]
+            users[1]["mentor_approval_status"] = "pending"
+            users[1]["name"] = ["PendingOnly", "Mentor"]
+        before = self.path.read_bytes()
+        response = self.client.get("/coordinator/pairings")
+        html = response.get_data(as_text=True)
+        output = html.split('<pre class="matching-output">', 1)[1].split('</pre>', 1)[0]
+        self.assertEqual(response.status_code, 200)
+        self.assertLess(html.index('id="active-pairings-heading"'), html.index('id="matching-results-heading"'))
+        self.assertNotIn("All pair scores:", output)
+        self.assertIn("Optimal matches:", output)
+        self.assertIn("Person3 Example", output)
+        self.assertIn("&lt;script&gt;", output)
+        self.assertNotIn("<script>", output)
+        self.assertNotIn("PendingOnly", output)
+        self.assertNotIn(self.password_hash, output)
+        self.assertEqual(self.path.read_bytes(), before)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+
+    def test_pairings_matching_results_handle_single_incomplete_account(self):
+        self.path.write_text(json.dumps([{
+            "id": 99, "username": "admin", "name": ["Admin", "Example"],
+            "role": "mentor", "is_coordinator": True,
+        }]))
+        self.authenticate()
+        response = self.client.get("/coordinator/pairings")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Unable to find a match for Admin Example (ID 99)", response.get_data(as_text=True))
+
     def test_bad_pairing_requests_leave_accounts_unchanged(self):
         self.authenticate()
         before = self.path.read_bytes()

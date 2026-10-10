@@ -67,6 +67,10 @@
         <p>No pairings yet. Choose a mentor and mentee above to create your first connection.</p>
       {% endif %}
     </section>
+    <section class="workspace-panel" aria-labelledby="matching-results-heading">
+      <h2 id="matching-results-heading">Matching results</h2>
+      <pre class="matching-output">{{ matching_output }}</pre>
+    </section>
   </section>
   <script id="pairing-profiles" type="application/json">{{ profiles | tojson }}</script>
   <script src="{{ url_for('static', filename='js/pairings.js') }}"></script>

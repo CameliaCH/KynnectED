@@ -9,6 +9,7 @@ from account_store import read_accounts, edit_accounts, session_secret, mentor_i
 from learning import learning, activity_for_user, room_summary, recording_report_summaries, MISSING_RECORDING_REASONS
 from materials import materials, approved_materials, approved_counts, submission_folders
 from recordings import recordings
+from matcher import matching_results
 
 ph = argon2.PasswordHasher()
 
@@ -455,7 +456,8 @@ def pairings():
     profiles = [{key: value for key, value in user.items() if key in fields}
                 for user in users if user.get("role") == "mentee" or mentor_is_approved(user)]
     return render_template("pairings.html", mentors=users_for_role(users, "mentor"),
-                           mentees=users_for_role(users, "mentee"), pairs=pairing_rows(users), profiles=profiles)
+                           mentees=users_for_role(users, "mentee"), pairs=pairing_rows(users), profiles=profiles,
+                           matching_output=matching_results(profiles, include_scores=False))
 
 
 @app.route('/coordinator/pairings', methods=['POST'])

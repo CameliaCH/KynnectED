@@ -1186,6 +1186,11 @@ body {
   margin-top: 16px;
 }
 
+.matching-output {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .pairing-card {
   display: block;
   color: var(--ink-soft);
