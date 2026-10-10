@@ -1,77 +1,47 @@
+{% from "contact_actions.html" import message_icon %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}KynnectED{% endblock %}</title>
+  <meta name="description" content="KynnectED connects refugee students in Malaysia with student mentors around the world for free, personalised academic support.">
+  <meta name="theme-color" content="#FAF7F5">
+  <title>{% block title %}KynnectED · Free one-to-one mentoring{% endblock %}</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/redesign.css') }}">
 </head>
-<body class="{% block body_class %}{% endblock %}">
-  <header class="topbar">
-    <nav class="topbar-links">
-      <a href="{{ url_for('learning_resources') }}" class="nav-link">Learning Resources</a>
-    </nav>
-    {% if current_user %}
-      <a href="{{ url_for('dashboard') }}" class="nav-link">Dashboard</a>
-      {% if current_user.is_coordinator %}<a href="{{ url_for('coordinator') }}" class="nav-link">Coordinator</a>{% endif %}
-      <form class="logout-form" action="{{ url_for('logout') }}" method="post">
-        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="btn-signin">Log Out</button>
-      </form>
-    {% else %}
-      <a href="/login" class="btn-signin">Log In</a>
-      <a href="/signup" class="btn-signin">Sign Up</a>
-    {% endif %}
-  </header>
-
-  {% for category, message in get_flashed_messages(with_categories=true) %}
-    <p class="site-notice" role="status">{{ message }}</p>
-  {% endfor %}
-  {% block content %}{% endblock %}
-
-  <footer class="site-footer">
-    <a class="footer-brand" href="{{ url_for('home') }}">
-      <svg class="footer-logo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-        <path d="M12 0c1 3.5 3.5 6 7 7-3.5 1-6 3.5-7 7-1-3.5-3.5-6-7-7 3.5-1 6-3.5 7-7z"/>
-      </svg>
-      KynnectED
-    </a>
-
-    <nav class="footer-nav">
-      <a href="{{ url_for('contact') }}">Contact</a>
-      <a href="{{ url_for('learning_resources') }}">Learning Resources</a>
-      {% if current_user %}
-        <a href="{{ url_for('dashboard') }}">Dashboard</a>
-        {% if current_user.is_coordinator %}<a href="{{ url_for('coordinator') }}">Coordinator</a>{% endif %}
-      {% else %}
-        <a href="/login" class="btn-signin">Log In</a>
-        <a href="/signup" class="btn-signin">Sign Up</a>
-      {% endif %}
-    </nav>
-
-    <div class="footer-social">
-      <a href="#" aria-label="Instagram">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-          <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-          <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-        </svg>
-      </a>
-      <a href="#" aria-label="LinkedIn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
-          <rect x="2" y="9" width="4" height="12"></rect>
-          <circle cx="4" cy="4" r="2"></circle>
-        </svg>
-      </a>
-      <a href="#" aria-label="X">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
-        </svg>
-      </a>
+<body class="{% block body_class %}public-page{% endblock %}" data-signed-in="{{ 'true' if current_user else 'false' }}">
+  <a class="skip-link" href="#main-content">Skip to content</a>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="{{ url_for('home') }}" aria-label="KynnectED home"><img src="{{ url_for('static', filename='img/kynnected-logo.png') }}" alt="KynnectED" width="2172" height="724"></a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu <span aria-hidden="true">☰</span></button>
+      <nav id="main-nav" class="main-nav" aria-label="Main navigation">
+        {% set navigation = [('home', 'Home'), ('about', 'About'), ('learning_resources', 'Resources'), ('dashboard', 'Dashboard')] if current_user else [('home', 'Home'), ('about', 'About'), ('students_centres', 'For Refugee Students & Centres'), ('learning_resources', 'Resources')] %}
+        {% for endpoint, label in navigation %}
+          <a href="{{ url_for(endpoint) }}" {% if request.endpoint == endpoint or (endpoint == 'learning_resources' and request.endpoint in ['resource_folder', 'materials.submit']) %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+        {% if current_user %}
+          <form class="logout-form" action="{{ url_for('logout') }}" method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="nav-logout" type="submit">Log out</button></form>
+        {% else %}
+          <a href="{{ url_for('login') }}" {% if request.endpoint == 'login' %}aria-current="page"{% endif %}>Login</a>
+          <a class="button button-small" href="{{ url_for('volunteer') }}#mentor">Become a Mentor</a>
+        {% endif %}
+      </nav>
     </div>
+  </header>
+  <div id="main-content" tabindex="-1">
+    {% for category, message in get_flashed_messages(with_categories=true) %}<p class="site-notice" role="status">{{ message }}</p>{% endfor %}
+    {% block content %}{% endblock %}
+  </div>
+  <footer class="site-footer">
+    <div class="footer-main wrap">
+      <div><a class="footer-brand" href="{{ url_for('home') }}"><img class="footer-logo" src="{{ url_for('static', filename='img/kynnected-logo.png') }}" alt="KynnectED" width="2172" height="724"></a><p>Connecting students<br>through education.</p></div>
+      <nav class="footer-nav" aria-label="Footer navigation"><a href="{{ url_for('about') }}">About</a><a href="{{ url_for('volunteer') }}">Volunteer</a><a href="{{ url_for('students_centres') }}#centres">Partner With Us</a><a href="{{ url_for('students_centres') }}#safeguarding">Safeguarding</a><a href="{{ url_for('code_of_conduct') }}">Code of Conduct</a><a href="{{ url_for('contact') }}">Contact</a></nav>
+      <div class="footer-contact"><span class="eyebrow">Contact</span><div class="contact-email-row"><a href="mailto:kynnect.org@gmail.com">kynnect.org@gmail.com</a>{{ message_icon() }}</div><div class="social-pending"><a href="https://www.instagram.com/kynnected_org/" target="_blank" rel="noopener noreferrer">Instagram</a><a href="https://www.linkedin.com/in/kynnected-malaysia-9672bb442" target="_blank" rel="noopener noreferrer" aria-label="KynnectED Malaysia on LinkedIn">LinkedIn</a></div></div>
+    </div>
+    <div class="footer-bottom wrap"><span>KynnectED</span><span>Based in Malaysia</span></div>
   </footer>
-
   <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 </body>
 </html>

@@ -1,0 +1,23 @@
+{% if current_user.id == lesson.mentor_id or current_user.is_coordinator %}
+  {% if lesson.missing_recording_reason %}
+  <p class="availability-help">Explanation submitted: {{ lesson.missing_recording_label }}{% if lesson.missing_recording_note %} — {{ lesson.missing_recording_note }}{% endif %}.</p>
+  {% elif not lesson.recorded_at and pair.active and not current_user.is_coordinator and current_user.id == lesson.mentor_id %}
+  <details class="lesson-tools missing-recording-details" id="missing-recording-{{ lesson.id }}">
+    <summary>Don’t have a recording?</summary>
+    <form class="account-form lesson-form missing-recording-form" action="{{ url_for('learning.report_missing_recording', lesson_id=lesson.id) }}" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label for="missing-reason-{{ lesson.id }}">Reason</label>
+      <select id="missing-reason-{{ lesson.id }}" name="reason" required>
+        <option value="">Choose a reason</option>
+        {% for value, label in missing_recording_reasons.items() %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+      </select>
+      <div data-other-explanation>
+        <label for="missing-note-{{ lesson.id }}">If Other, please explain</label>
+        <textarea id="missing-note-{{ lesson.id }}" name="note" rows="3" maxlength="1000"></textarea>
+      </div>
+      <p class="availability-help">Your response will be saved for coordinator review. Each lesson is counted once.</p>
+      <button class="btn-signin" type="submit">Submit explanation</button>
+    </form>
+  </details>
+  {% endif %}
+{% endif %}

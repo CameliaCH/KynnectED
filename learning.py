@@ -12,11 +12,19 @@ from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, send_file, url_for
-from werkzeug.utils import secure_filename
 
-from account_store import read_accounts
+from account_store import read_accounts, mentor_is_approved
 
 learning = Blueprint("learning", __name__)
+
+MISSING_RECORDING_REASONS = {
+    "forgot_to_record": "Forgot to record",
+    "lesson_did_not_take_place": "Lesson did not take place",
+    "recording_failed": "Recording failed due to a technical issue",
+    "recording_lost": "Recording was lost or corrupted",
+    "upload_problem": "Unable to upload due to an internet or upload issue",
+    "other": "Other",
+}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS lessons (
@@ -38,9 +46,35 @@ CREATE TABLE IF NOT EXISTS lessons (
     uploaded_by INTEGER,
     reviewed_at INTEGER,
     reviewed_by INTEGER,
+    review_submitted_by INTEGER,
+    reviewer_name TEXT,
     review_note TEXT
 );
 CREATE INDEX IF NOT EXISTS lessons_pair ON lessons(mentor_id, mentee_id, scheduled_at);
+CREATE TABLE IF NOT EXISTS missing_recording_reports (
+    lesson_id TEXT PRIMARY KEY REFERENCES lessons(id),
+    mentor_id INTEGER NOT NULL,
+    reason TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    submitted_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS missing_recording_reports_mentor ON missing_recording_reports(mentor_id);
+CREATE TABLE IF NOT EXISTS resource_materials (
+    id TEXT PRIMARY KEY,
+    folder TEXT NOT NULL,
+    title TEXT NOT NULL,
+    filename TEXT NOT NULL,
+    original_filename TEXT NOT NULL,
+    mimetype TEXT NOT NULL,
+    size_bytes INTEGER NOT NULL,
+    uploaded_by INTEGER NOT NULL,
+    uploaded_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+    reviewed_by INTEGER,
+    reviewed_at INTEGER,
+    review_note TEXT NOT NULL DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS resource_materials_folder ON resource_materials(folder, status, uploaded_at);
 CREATE TABLE IF NOT EXISTS messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mentor_id INTEGER NOT NULL,
@@ -50,7 +84,54 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_pair ON messages(mentor_id, mentee_id, id);
+CREATE TABLE IF NOT EXISTS recordings (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES lessons(id),
+    mentor_id INTEGER NOT NULL,
+    mentee_id INTEGER NOT NULL,
+    r2_object_key TEXT NOT NULL UNIQUE,
+    original_filename TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    uploaded_at INTEGER NOT NULL,
+    expires_at INTEGER NOT NULL,
+    review_status TEXT NOT NULL DEFAULT 'awaiting_review'
+        CHECK(review_status IN ('awaiting_review', 'reviewed', 'flagged')),
+    reviewed_by INTEGER,
+    reviewed_at INTEGER,
+    review_submitted_by INTEGER,
+    reviewer_name TEXT,
+    review_note TEXT NOT NULL DEFAULT '',
+    safeguarding_flag INTEGER NOT NULL DEFAULT 0,
+    flagged_at INTEGER,
+    flagged_by INTEGER,
+    safeguarding_note TEXT NOT NULL DEFAULT '',
+    active INTEGER NOT NULL DEFAULT 1
+);
+CREATE UNIQUE INDEX IF NOT EXISTS recordings_active ON recordings(session_id) WHERE active = 1;
+CREATE TABLE IF NOT EXISTS recording_uploads (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL REFERENCES lessons(id),
+    mentor_id INTEGER NOT NULL,
+    r2_object_key TEXT NOT NULL UNIQUE,
+    multipart_id TEXT NOT NULL,
+    original_filename TEXT NOT NULL,
+    content_type TEXT NOT NULL,
+    file_size INTEGER NOT NULL,
+    baseline TEXT NOT NULL,
+    consent_at INTEGER NOT NULL,
+    created_at INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending'
+        CHECK(status IN ('pending', 'processing', 'completed', 'aborted')),
+    processing_at INTEGER
+);
+CREATE UNIQUE INDEX IF NOT EXISTS recording_uploads_active ON recording_uploads(session_id)
+    WHERE status IN ('pending', 'processing');
 """
+
+LESSON_SELECT = """SELECT lessons.*, reports.reason AS missing_recording_reason,
+    reports.note AS missing_recording_note, reports.submitted_at AS missing_recording_submitted_at
+    FROM lessons LEFT JOIN missing_recording_reports AS reports ON reports.lesson_id = lessons.id"""
 
 
 def get_db():
@@ -61,6 +142,18 @@ def get_db():
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA journal_mode=WAL")
         db.executescript(SCHEMA)
+        # Upgrade existing databases without changing saved reviews or lesson records.
+        review_columns = {'review_submitted_by': 'INTEGER', 'reviewer_name': 'TEXT'}
+        tables = ('lessons', 'recordings')
+        if any(not review_columns.keys() <= {row['name'] for row in db.execute(f'PRAGMA table_info({table})')}
+               for table in tables):
+            with db:
+                db.execute('BEGIN IMMEDIATE')
+                for table in tables:
+                    columns = {row['name'] for row in db.execute(f'PRAGMA table_info({table})')}
+                    for column, kind in review_columns.items():
+                        if column not in columns:
+                            db.execute(f'ALTER TABLE {table} ADD COLUMN {column} {kind}')
         g.learning_db = db
     return g.learning_db
 
@@ -84,6 +177,7 @@ def require_login():
 def private_response(response):
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers['Referrer-Policy'] = 'no-referrer'
     return response
 
 
@@ -92,7 +186,7 @@ def users_by_id():
 
 
 def active_pair(mentor, mentee):
-    return bool(mentor and mentee and mentor.get("role") == "mentor" and mentee.get("role") == "mentee"
+    return bool(mentor_is_approved(mentor) and mentee and mentee.get("role") == "mentee"
                 and str(mentee["id"]) in {str(id) for id in mentor.get("partners", [])}
                 and str(mentor["id"]) in {str(id) for id in mentee.get("partners", [])})
 
@@ -109,14 +203,17 @@ def room_access(mentor_id, mentee_id, manage=False, chat=False):
         abort(403, description="This pairing room is only available to its linked participants and coordinators.")
     if (manage or chat) and not active:
         abort(403, description="This pairing is inactive. Ask a coordinator to link the accounts again.")
-    can_manage = active and (coordinator or g.current_user["id"] == mentor_id or (
+    if (manage or chat) and coordinator:
+        abort(403, description="Admins have read-only access to pairing rooms.")
+    can_manage = active and not coordinator and (g.current_user["id"] == mentor_id or (
         current_app.config["MENTEES_MANAGE_LESSONS"] and participant))
     if manage and not can_manage:
-        abort(403, description="Only the mentor or a coordinator can manage this lesson.")
+        abort(403, description="Only the assigned mentor can manage this lesson.")
     if chat and not participant:
         abort(403, description="Coordinators can review this chat. Only the paired participants can send messages.")
     return {"mentor": mentor, "mentee": mentee, "active": active,
-            "can_manage": can_manage, "can_chat": active and participant}
+            "can_manage": can_manage, "can_chat": active and participant and not coordinator,
+            "read_only": coordinator}
 
 
 def lesson_access(lesson_id, manage=False):
@@ -130,7 +227,39 @@ def local_datetime(timestamp):
     return datetime.fromtimestamp(timestamp, ZoneInfo(current_app.config["LESSON_TIMEZONE"]))
 
 
-def present_lesson(row, users=None):
+def admin_reviewers(users=None):
+    users = users_by_id() if users is None else users
+    return sorted((user for user in users.values() if user.get('is_coordinator') is True),
+                  key=lambda user: (' '.join(user.get('name', [])).casefold(), user['username']))
+
+
+def selected_reviewer():
+    """An admin may attribute the final review to another current admin."""
+    try:
+        reviewer_id = int(request.form.get('reviewed_by', g.current_user['id']))
+    except (ValueError, TypeError):
+        abort(400, description='Choose an admin reviewer.')
+    reviewer = users_by_id().get(reviewer_id)
+    if not reviewer or reviewer.get('is_coordinator') is not True:
+        abort(400, description='Choose an admin reviewer.')
+    return reviewer_id, ' '.join(reviewer.get('name', [])) or reviewer['username']
+
+
+def public_review(row, users=None):
+    row = dict(row)
+    reviewed_at = row.get('reviewed_at')
+    name = row.get('reviewer_name')
+    if reviewed_at and not name:
+        users = users_by_id() if users is None else users
+        reviewer = users.get(row.get('reviewed_by'), {})
+        name = ' '.join(reviewer.get('name', [])) or reviewer.get('username', 'Former admin')
+    return {'reviewed_at': reviewed_at, 'reviewed_by': row.get('reviewed_by'),
+            'reviewer_name': name or '',
+            'reviewed_label': local_datetime(reviewed_at).strftime('%d %b %Y · %H:%M') if reviewed_at else '',
+            'review_note': (row.get('review_note') or '') if reviewed_at else ''}
+
+
+def present_lesson(row, users=None, now=None):
     lesson = dict(row)
     users = users or users_by_id()
     lesson["mentor"] = users.get(lesson["mentor_id"], {"name": ["Former mentor"]})
@@ -139,7 +268,9 @@ def present_lesson(row, users=None):
     lesson["start_label"] = local_datetime(lesson["scheduled_at"]).strftime("%a, %d %b %Y · %H:%M")
     lesson["datetime_input"] = local_datetime(lesson["scheduled_at"]).strftime("%Y-%m-%dT%H:%M")
     lesson["duration_label"] = f'{(lesson["recording_seconds"] or 0) / 60:.1f} min'
-    now = time.time()
+    now = time.time() if now is None else now
+    lesson["finished"] = not lesson["cancelled_at"] and bool(
+        lesson["recorded_at"] or lesson["scheduled_at"] + lesson["planned_minutes"] * 60 <= now)
     if lesson["cancelled_at"]:
         lesson["status"] = "Cancelled"
     elif lesson["recorded_at"]:
@@ -149,21 +280,56 @@ def present_lesson(row, users=None):
     elif lesson["scheduled_at"] + lesson["planned_minutes"] * 60 > now:
         lesson["status"] = "In progress"
     else:
-        lesson["status"] = "Awaiting recording"
-    lesson["can_upload"] = not lesson["cancelled_at"] and lesson["scheduled_at"] <= now
+        lesson["status"] = "Awaiting upload"
+    lesson["can_upload"] = not lesson["cancelled_at"] and not lesson['reviewed_at'] and lesson["scheduled_at"] <= now
+    lesson["can_edit"] = not lesson["cancelled_at"] and not lesson["recorded_at"] and lesson["scheduled_at"] > now
+    deadline = lesson["scheduled_at"] + lesson["planned_minutes"] * 60 + 7 * 24 * 3600
+    lesson["upload_deadline_label"] = local_datetime(deadline).strftime("%d %b %Y · %H:%M")
+    lesson["upload_overdue"] = not lesson["recorded_at"] and not lesson["cancelled_at"] and now > deadline
+    lesson["missing_recording_label"] = MISSING_RECORDING_REASONS.get(lesson.get("missing_recording_reason"), "")
+    from recordings import recording_for_lesson, present_recording
+    recording = recording_for_lesson(lesson['id'])
+    lesson['cloud_recording'] = present_recording(recording, now=now, users=users) if recording else None
+    lesson['recording_available'] = bool(lesson['cloud_recording']['available'] if recording else lesson['recording_filename'])
+    lesson.update(public_review(recording or lesson, users))
     return lesson
+
+def recording_report_summaries():
+    """One durable report per lesson, attributed to its mentor across all pairings."""
+    summaries = {}
+    rows = get_db().execute("""SELECT reports.*, lessons.title, lessons.scheduled_at, lessons.recorded_at
+        FROM missing_recording_reports AS reports JOIN lessons ON lessons.id = reports.lesson_id
+        ORDER BY reports.submitted_at DESC, reports.rowid DESC""")
+    for row in rows:
+        summary = summaries.setdefault(row["mentor_id"], {
+            "count": 0, "flagged": False,
+            "reason_counts": dict.fromkeys(MISSING_RECORDING_REASONS, 0), "reports": []})
+        summary["count"] += 1
+        summary["reason_counts"][row["reason"]] += 1
+        summary["reports"].append({
+            "lesson_id": row["lesson_id"], "title": row["title"],
+            "lesson_date": local_datetime(row["scheduled_at"]).isoformat(),
+            "reason": row["reason"], "reason_label": MISSING_RECORDING_REASONS[row["reason"]],
+            "note": row["note"],
+            "submitted_at": datetime.fromtimestamp(row["submitted_at"], timezone.utc).isoformat(),
+            "recording_uploaded": bool(row["recorded_at"]),
+        })
+        summary["flagged"] = summary["count"] > 3
+    return summaries
 
 
 def activity_for_user(user_id, users=None):
     users = users or users_by_id()
-    rows = get_db().execute("SELECT * FROM lessons WHERE mentor_id = ? OR mentee_id = ? ORDER BY scheduled_at",
+    rows = get_db().execute(LESSON_SELECT + " WHERE lessons.mentor_id = ? OR lessons.mentee_id = ? ORDER BY lessons.scheduled_at",
                             (user_id, user_id)).fetchall()
     completed = [row for row in rows if row["recorded_at"] and not row["cancelled_at"]]
-    upcoming = [present_lesson(row, users) for row in rows if not row["cancelled_at"] and not row["recorded_at"]
-                and row["scheduled_at"] + row["planned_minutes"] * 60 > time.time()
-                and active_pair(users.get(row["mentor_id"]), users.get(row["mentee_id"]))]
+    now = time.time()
+    lessons = [present_lesson(row, users, now=now) for row in rows]
+    upcoming = [lesson for lesson in lessons if not lesson["cancelled_at"] and not lesson["finished"]
+                and lesson["active_pair"]]
+    finished = [lesson for lesson in reversed(lessons) if lesson["finished"]]
     return {"hours": sum(row["recording_seconds"] or 0 for row in completed) / 3600,
-            "completed": len(completed), "upcoming": upcoming}
+            "completed": len(completed), "upcoming": upcoming, "finished": finished}
 
 
 def room_summary(mentor_id, mentee_id):
@@ -177,16 +343,19 @@ def room_summary(mentor_id, mentee_id):
 def room(mentor_id, mentee_id):
     pair = room_access(mentor_id, mentee_id)
     users = users_by_id()
-    lessons = [present_lesson(row, users) for row in get_db().execute(
-        "SELECT * FROM lessons WHERE mentor_id = ? AND mentee_id = ? ORDER BY scheduled_at DESC", (mentor_id, mentee_id))]
+    now = time.time()
+    lessons = [present_lesson(row, users, now=now) for row in get_db().execute(
+        LESSON_SELECT + " WHERE lessons.mentor_id = ? AND lessons.mentee_id = ? ORDER BY lessons.scheduled_at DESC", (mentor_id, mentee_id))]
     recordings = [lesson for lesson in lessons if lesson["recorded_at"]]
-    pending = sorted([lesson for lesson in lessons if not lesson["recorded_at"] and not lesson["cancelled_at"]],
+    finished = [lesson for lesson in lessons if lesson["finished"]]
+    pending = sorted([lesson for lesson in lessons if not lesson["finished"] and not lesson["cancelled_at"]],
                      key=lambda lesson: lesson["scheduled_at"])
     cancelled = [lesson for lesson in lessons if lesson["cancelled_at"]]
     return render_template("room.html", pair=pair, summary=room_summary(mentor_id, mentee_id),
-                           recordings=recordings, pending=pending, cancelled=cancelled,
+                           recordings=recordings, pending=pending, finished=finished, cancelled=cancelled,
+                           missing_recording_reasons=MISSING_RECORDING_REASONS,
                            messages=message_rows(mentor_id, mentee_id), timezone=current_app.config["LESSON_TIMEZONE"],
-                           max_upload_mb=current_app.config["MAX_CONTENT_LENGTH"] // (1024 * 1024),
+                           max_upload_mb=current_app.config['MAX_RECORDING_BYTES'] // (1024 * 1024),
                            now_input=local_datetime(time.time()).strftime("%Y-%m-%dT%H:%M"))
 
 
@@ -250,8 +419,8 @@ def edit_lesson(lesson_id):
     with db:
         db.execute("BEGIN IMMEDIATE")
         fresh = db.execute("SELECT * FROM lessons WHERE id = ?", (lesson_id,)).fetchone()
-        if fresh["recorded_at"] or fresh["cancelled_at"]:
-            abort(409, description="Completed or cancelled lessons cannot be rescheduled.")
+        if fresh["recorded_at"] or fresh["cancelled_at"] or fresh["scheduled_at"] <= time.time():
+            abort(409, description="Lessons cannot be edited once their scheduled start time has passed, or after recording or cancellation.")
         reject_conflicts(db, lesson["mentor_id"], lesson["mentee_id"], values[1], values[2], lesson_id)
         db.execute("UPDATE lessons SET title = ?, scheduled_at = ?, planned_minutes = ?, zoom_url = ? WHERE id = ?",
                    (*values, lesson_id))
@@ -263,12 +432,42 @@ def edit_lesson(lesson_id):
 def cancel_lesson(lesson_id):
     lesson, _ = lesson_access(lesson_id, manage=True)
     with get_db() as db:
-        result = db.execute("UPDATE lessons SET cancelled_at = ? WHERE id = ? AND recorded_at IS NULL",
-                            (int(time.time()), lesson_id))
+        now = int(time.time())
+        result = db.execute("""UPDATE lessons SET cancelled_at = ?
+            WHERE id = ? AND recorded_at IS NULL AND cancelled_at IS NULL AND scheduled_at > ?""",
+                            (now, lesson_id, now))
         if not result.rowcount:
-            abort(409, description="A lesson with recorded attendance cannot be cancelled.")
+            abort(409, description="Lessons cannot be cancelled once their scheduled start time has passed, or after recording or cancellation.")
     flash("Lesson cancelled for both participants.", "success")
     return redirect(url_for("learning.room", mentor_id=lesson["mentor_id"], mentee_id=lesson["mentee_id"], _anchor="lessons"))
+
+@learning.post('/lessons/<lesson_id>/missing-recording')
+def report_missing_recording(lesson_id):
+    lesson, _ = lesson_access(lesson_id)
+    if g.current_user.get('is_coordinator') is True or g.current_user["id"] != lesson["mentor_id"]:
+        abort(403, description="Only this lesson's mentor can submit a missing-recording explanation.")
+    reason = request.form.get("reason", "")
+    note = request.form.get("note", "").strip()
+    if reason not in MISSING_RECORDING_REASONS:
+        abort(400, description="Choose a reason for the missing recording.")
+    if len(note) > 1000 or (reason == "other" and not note):
+        abort(400, description="For Other, provide an explanation. Keep explanations within 1,000 characters.")
+    if reason != "other":
+        note = ""
+    db = get_db()
+    with db:
+        db.execute("BEGIN IMMEDIATE")
+        fresh = db.execute("SELECT * FROM lessons WHERE id = ?", (lesson_id,)).fetchone()
+        room_access(fresh["mentor_id"], fresh["mentee_id"])
+        now = int(time.time())
+        if fresh["cancelled_at"] or fresh["recorded_at"] or fresh["scheduled_at"] + fresh["planned_minutes"] * 60 > now:
+            abort(409, description="Explanations can only be submitted for finished lessons without a recording.")
+        if db.execute("SELECT 1 FROM missing_recording_reports WHERE lesson_id = ?", (lesson_id,)).fetchone():
+            abort(409, description="An explanation has already been saved for this lesson. It is counted once.")
+        db.execute("INSERT INTO missing_recording_reports(lesson_id, mentor_id, reason, note, submitted_at) VALUES (?, ?, ?, ?, ?)",
+                   (lesson_id, lesson["mentor_id"], reason, note, now))
+    flash("Explanation saved for coordinator review. Attendance is only marked when a recording is uploaded.", "success")
+    return redirect(url_for("learning.room", mentor_id=lesson["mentor_id"], mentee_id=lesson["mentee_id"], _anchor="lesson-" + lesson_id))
 
 
 def probe_video(path, extension):
@@ -295,54 +494,16 @@ def probe_video(path, extension):
 
 @learning.post('/lessons/<lesson_id>/recording')
 def upload_recording(lesson_id):
-    lesson, _ = lesson_access(lesson_id, manage=True)
-    if lesson["cancelled_at"] or lesson["scheduled_at"] > time.time():
-        abort(409, description="Upload a recording after the lesson starts. Cancelled lessons cannot receive recordings.")
-    upload = request.files.get("recording")
-    if upload is None or not upload.filename:
-        abort(400, description="Choose a recording to upload.")
-    original = secure_filename(upload.filename)
-    extension = Path(original).suffix.lower()
-    if extension not in {".mp4", ".webm"}:
-        abort(400, description="Choose an MP4 or WebM video recording.")
-    directory = Path(current_app.config["RECORDINGS_DIR"])
-    directory.mkdir(parents=True, exist_ok=True)
-    filename = uuid4().hex + extension
-    path = directory / filename
-    committed = False
-    previous = None
-    try:
-        upload.save(path)
-        duration = probe_video(path, extension)
-        db = get_db()
-        with db:
-            db.execute("BEGIN IMMEDIATE")
-            fresh = db.execute("SELECT * FROM lessons WHERE id = ?", (lesson_id,)).fetchone()
-            room_access(fresh["mentor_id"], fresh["mentee_id"], manage=True)
-            if fresh["cancelled_at"] or fresh["scheduled_at"] > time.time():
-                abort(409, description="This lesson changed while you were uploading. Reload the room and try again.")
-            previous = fresh["recording_filename"]
-            db.execute("""UPDATE lessons SET recording_filename = ?, recording_original = ?, recording_mimetype = ?,
-                recording_seconds = ?, recorded_at = ?, uploaded_by = ?, reviewed_at = NULL, reviewed_by = NULL,
-                review_note = NULL WHERE id = ?""",
-                (filename, original, "video/mp4" if extension == ".mp4" else "video/webm", duration,
-                 int(time.time()), g.current_user["id"], lesson_id))
-        committed = True
-    finally:
-        if not committed:
-            path.unlink(missing_ok=True)
-    if previous:
-        (directory / previous).unlink(missing_ok=True)
-    flash("Recording uploaded. Attendance and learning hours have been updated for both participants.", "success")
-    destination = url_for("learning.room", mentor_id=lesson["mentor_id"], mentee_id=lesson["mentee_id"], _anchor="recordings")
-    if request.headers.get("X-Requested-With") == "XMLHttpRequest":
-        return jsonify(redirect=destination)
-    return redirect(destination)
+    abort(410, description='Use Upload Session Recording to upload directly to private storage.')
 
 
 @learning.get('/lessons/<lesson_id>/recording')
 def recording(lesson_id):
     lesson, _ = lesson_access(lesson_id)
+    from recordings import recording_for_lesson, watch
+    cloud_recording = recording_for_lesson(lesson_id)
+    if cloud_recording:
+        return watch(cloud_recording['id'])
     if not lesson["recording_filename"]:
         abort(404)
     path = Path(current_app.config["RECORDINGS_DIR"]) / lesson["recording_filename"]
@@ -398,11 +559,15 @@ def messages(mentor_id, mentee_id):
 def monitor():
     if g.current_user.get("is_coordinator") is not True:
         abort(403, description="This page is available to coordinators only.")
+    from recordings import coordinator_rows
     users = users_by_id()
-    lessons = [present_lesson(row, users) for row in get_db().execute("SELECT * FROM lessons ORDER BY scheduled_at DESC")]
+    lessons = [present_lesson(row, users) for row in get_db().execute(LESSON_SELECT + " ORDER BY lessons.scheduled_at DESC")]
     people = [{"user": user, **activity_for_user(user["id"], users)} for user in users.values()
-              if user.get("role") in {"mentor", "mentee"}]
+              if user.get("role") == "mentee" or mentor_is_approved(user)]
     return render_template("lesson_monitor.html", lessons=lessons, people=people,
+                           reviewers=admin_reviewers(users),
+                           cloud_recordings=coordinator_rows(),
+                           recording_reports=recording_report_summaries(), missing_recording_reasons=MISSING_RECORDING_REASONS,
                            pending_reviews=sum(bool(row["recorded_at"] and not row["reviewed_at"]) for row in lessons),
                            timezone=current_app.config["LESSON_TIMEZONE"])
 
@@ -412,14 +577,24 @@ def review_recording(lesson_id):
     if g.current_user.get("is_coordinator") is not True:
         abort(403, description="Only coordinators can review recordings.")
     lesson, _ = lesson_access(lesson_id)
+    from recordings import recording_for_lesson
     note = request.form.get("review_note", "").strip()
     if len(note) > 2000:
         abort(400, description="Keep review notes within 2,000 characters.")
+    reviewer_id, reviewer_name = selected_reviewer()
     with get_db() as db:
-        result = db.execute("""UPDATE lessons SET reviewed_at = ?, reviewed_by = ?, review_note = ?
-            WHERE id = ? AND recording_filename = ?""", (int(time.time()), g.current_user["id"], note,
-                                                        lesson_id, request.form.get("recording_version")))
+        db.execute('BEGIN IMMEDIATE')
+        fresh, _ = lesson_access(lesson_id)
+        if fresh['reviewed_at'] is not None:
+            abort(409, description='This review is final and cannot be edited.')
+        if recording_for_lesson(lesson_id):
+            abort(409, description='Use the current recording review form. Reload this page.')
+        result = db.execute("""UPDATE lessons SET reviewed_at = ?, reviewed_by = ?, review_note = ?,
+            review_submitted_by = ?, reviewer_name = ?
+            WHERE id = ? AND recording_filename = ? AND reviewed_at IS NULL""",
+            (int(time.time()), reviewer_id, note, g.current_user['id'], reviewer_name,
+             lesson_id, request.form.get("recording_version")))
         if not result.rowcount:
             abort(409, description="The recording has changed or is missing. Reload it before saving a review.")
-    flash("Recording review saved. Review notes are visible only to coordinators.", "success")
-    return redirect(url_for("learning.room", mentor_id=lesson["mentor_id"], mentee_id=lesson["mentee_id"], _anchor="recordings"))
+    flash("Review finalised. The reviewer and comments are visible to the mentor and student.", "success")
+    return redirect(url_for('learning.monitor', _anchor='lesson-review-' + lesson_id))

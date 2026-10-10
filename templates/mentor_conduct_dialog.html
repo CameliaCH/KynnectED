@@ -1,0 +1,10 @@
+<dialog id="mentor-conduct-dialog" class="mentor-conduct-dialog" aria-labelledby="mentor-conduct-heading" data-version="{{ mentor_conduct_version }}" data-document-sha256="{{ mentor_conduct_document_sha256 }}">
+  <div class="conduct-dialog-header"><h2 id="mentor-conduct-heading" tabindex="-1" autofocus>Mentor Code of Conduct</h2><button id="conduct-close" class="conduct-close" type="button" aria-label="Close Code of Conduct">×</button></div>
+  <div class="conduct-dialog-body">
+    <p>Read the Code of Conduct & Safeguarding Agreement before completing your signup.</p>
+    <a class="text-link" href="{{ url_for('static', filename='documents/KynnectED_Mentor_Code_of_Conduct_Signup.pdf') }}" target="_blank" rel="noopener noreferrer">Open signup document (PDF)</a>
+    {% include "conduct_text.html" %}
+    <div class="mentor-declaration"><label class="conduct-checkbox" for="mentor-conduct-accepted"><input id="mentor-conduct-accepted" type="checkbox" name="mentor_conduct_accepted" value="yes" required><span>I confirm the Mentor Declaration above.</span></label></div>
+  </div>
+  <div class="conduct-dialog-footer"><p id="conduct-signup-error" class="form-error" role="alert" hidden></p><button class="button button-outline" id="conduct-back" type="button">Back</button><button class="button" id="conduct-confirm" type="button" disabled>Complete sign up</button></div>
+</dialog>

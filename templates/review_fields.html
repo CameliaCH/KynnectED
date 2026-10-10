@@ -1,0 +1,8 @@
+<label for="reviewer-{{ review_id }}">Reviewer</label>
+<select id="reviewer-{{ review_id }}" name="reviewed_by" required>
+  {% for reviewer in reviewers %}<option value="{{ reviewer.id }}" {% if reviewer.id == current_user.id %}selected{% endif %}>{{ reviewer.name | join(' ') or reviewer.username }}</option>{% endfor %}
+</select>
+<label for="review-{{ review_id }}">Review comments</label>
+<textarea id="review-{{ review_id }}" name="review_note" rows="3" maxlength="2000"></textarea>
+<p class="availability-help">Visible to the mentor and student. Once marked reviewed, this review is final.</p>
+<button class="btn-signin" type="submit">Mark reviewed</button>

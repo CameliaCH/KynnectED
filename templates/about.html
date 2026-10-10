@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}About · KynnectED{% endblock %}
+{% block content %}
+<main>
+  <section class="editorial-hero wrap"><h1>About KynnectED</h1><p class="large-intro">Our mission is to provide personalised one-to-one mentoring for refugee students across Malaysia.</p></section>
+  <section class="story-section wrap"><div><h2>Our story</h2><p>KynnectED connects refugee students in Malaysia with student mentors around the world, providing personalised one-to-one academic support to help address gaps caused by limited access to educational resources. Our aim is to give every student greater access to the individual support and opportunities they need to learn and grow.</p><p>The programme provides regular academic support tailored to each student’s needs.</p></div></section>
+  <section class="section wrap"><h2>What we believe</h2><div class="belief-grid">{% for title, copy in [('Education should be personalised', 'Sessions should reflect each student’s needs and learning pace.'), ('Mentorship extends beyond academics', 'Mentors help students build confidence as well as subject knowledge.'), ('Technology can make support more accessible', 'Online tools help students and mentors meet regularly across borders.')] %}<article><h3>{{ title }}</h3><p>{{ copy }}</p></article>{% endfor %}</div></section>
+  {# Our team is saved in about_team.html. Restore its include when roles are finalised. #}
+  {% include "join_banner.html" %}
+</main>
+{% endblock %}

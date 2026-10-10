@@ -1,0 +1,11 @@
+<section class="export-group" aria-labelledby="pending-mentors-heading">
+  <div class="export-group-header"><h2 id="pending-mentors-heading">Pending mentors <span class="export-count">({{ pending_mentors | length }})</span></h2><a class="button button-outline" href="{{ url_for('export_csv', group='pending-mentors') }}">Download CSV</a></div>
+  <div class="table-scroll" role="region" aria-label="Pending mentor applications" tabindex="0">
+    <table><thead><tr><th scope="col">Name</th><th scope="col">Username</th><th scope="col">Email</th><th scope="col">Subjects</th><th scope="col">Applied</th><th scope="col">Action</th></tr></thead>
+      <tbody>{% for mentor in pending_mentors %}<tr>
+        <td>{{ mentor.name | join(' ') }}</td><td>@{{ mentor.username }}</td><td><a href="mailto:{{ mentor.email }}">{{ mentor.email }}</a></td><td>{{ mentor.subjects | join(', ') | title }}</td><td>{{ mentor.applied_label }}</td>
+        <td><form class="account-form" action="{{ url_for('approve_mentor', mentor_id=mentor.id) }}" method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="btn-signin" type="submit" aria-label="Approve {{ mentor.name | join(' ') }}">Approve mentor</button></form></td>
+      </tr>{% else %}<tr><td colspan="6">No mentors awaiting approval.</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+</section>

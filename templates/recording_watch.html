@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Session recording · KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="page-body workspace-body recording-watch-page">
+  <a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='recordings') }}">← Finished lessons</a>
+  <article class="workspace-panel lesson-card">
+    <span class="workspace-label">Session recording</span><h1>{{ lesson.title }}</h1>
+    <p>{{ lesson.start_label }} · {{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }}</p>
+    <p class="availability-help">Uploaded: {{ recording.upload_label }} · {{ 'Retention' if recording.expiry_label == 'Retained' else 'Expires' }}: {{ recording.expiry_label }}</p>
+    {% if recording.available %}
+    <video class="lesson-video private-recording-video" controls preload="metadata"
+           data-playback-url="{{ url_for('recordings.playback', recording_id=recording.id) }}" aria-label="{{ lesson.title }} recording"></video>
+    <p class="video-status availability-help" role="status" aria-live="polite"></p>
+    <button class="room-link-button video-retry" type="button" hidden>Reload video</button>
+    {% else %}<p class="room-notice">Recording expired. Your session attendance and hours are still saved.</p>{% endif %}
+    {% with review_summary=recording %}{% include "review_summary.html" %}{% endwith %}
+    {% if review %}
+    {% if review.safeguarding_note %}<p class="private-recording-note">Safeguarding notes: {{ review.safeguarding_note }}</p>{% endif %}
+    <a class="room-text-link" href="{{ url_for('learning.monitor', _anchor='recording-' ~ recording.id) }}">Review in admin dashboard</a>
+    {% endif %}
+  </article>
+</main>
+<script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
+{% endblock %}

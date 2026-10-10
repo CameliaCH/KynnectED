@@ -1,0 +1,6 @@
+{% if review_summary.reviewed_at %}
+<div class="recording-review-summary">
+  <p class="availability-help">Reviewed by {{ review_summary.reviewer_name }} · {{ review_summary.reviewed_label }}</p>
+  {% if review_summary.review_note %}<p class="private-recording-note">{{ review_summary.review_note }}</p>{% endif %}
+</div>
+{% endif %}

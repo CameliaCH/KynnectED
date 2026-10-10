@@ -1,0 +1,396 @@
+{
+  "signup": {
+    "title": "MENTOR CODE OF CONDUCT & SAFEGUARDING AGREEMENT",
+    "metadata": [
+      {
+        "label": "APPLIES TO",
+        "value": "All KynnectED mentors"
+      },
+      {
+        "label": "VERSION",
+        "value": "1.0"
+      },
+      {
+        "label": "EFFECTIVE",
+        "value": "October 2026"
+      }
+    ],
+    "introduction": "KynnectED is committed to providing a safe, respectful and secure environment for every mentor and mentee. This Code sets the minimum standards expected of all mentors before, during and after participation in the programme.",
+    "expectations_heading": "NON-NEGOTIABLE EXPECTATIONS",
+    "expectations": [
+      "Use only approved KynnectED communication and session channels.",
+      "Maintain professional boundaries and respectful communication at all times.",
+      "Record and upload every approved session in accordance with consent requirements.",
+      "Ensure a responsible adult is present at the mentee's location during each session.",
+      "Report any safeguarding concern promptly through the designated KynnectED process."
+    ],
+    "accompanying_requirements": "This Code should be read alongside any safeguarding or conduct requirements set by Garden International School, partner learning centres, and the mentee's parent or guardian. Where requirements differ, mentors must follow the stricter safeguarding standard.",
+    "sections": [
+      {
+        "heading": "1. Purpose and Scope",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "This Code applies to all KynnectED mentors. By accepting a mentoring role, mentors agree to uphold these standards throughout their involvement with KynnectED, including in sessions, messages, shared resources and any programme-related communication."
+          }
+        ]
+      },
+      {
+        "heading": "2. Professional Conduct and Respectful Communication",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Treat every mentee with dignity, patience, empathy and respect, regardless of background, ability, language, gender, religion, nationality or personal circumstances.",
+              "Use language and teaching materials that are age-appropriate, inclusive and relevant to the learner's educational needs.",
+              "Never use threatening, humiliating, discriminatory, sexualised, romantic or otherwise inappropriate language or behaviour.",
+              "Do not pressure a mentee to discuss personal experiences, family circumstances, displacement, trauma, religion, politics or other sensitive topics unrelated to the learning objective.",
+              "Do not use the mentoring relationship to promote personal, political, commercial or religious interests."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "3. Professional Boundaries",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Keep all mentor-mentee communication within the approved KynnectED platform and approved session tools.",
+              "Do not exchange personal phone numbers, private email addresses, social media accounts, home addresses or other personal contact details.",
+              "Do not arrange private or in-person meetings with a mentee outside the approved KynnectED programme.",
+              "Do not give or request money, personal gifts, passwords, photographs, identity documents or other private information.",
+              "Do not form romantic, sexual or otherwise inappropriate personal relationships with a mentee.",
+              "Remember that the mentor role is educational and supportive. Mentors must not act as counsellors, social workers or legal advisers."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "4. Attendance and Session Conduct",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Attend agreed sessions punctually and prepared with suitable learning materials.",
+              "If a session must be cancelled or rescheduled, give as much notice as reasonably possible through the approved platform.",
+              "Repeated lateness, missed sessions or unreliable attendance may result in a review of the mentor's placement.",
+              "Sessions must take place only at approved times and through approved digital channels.",
+              "A responsible adult designated by the learning centre, parent or guardian must be present at the mentee's location during each session.",
+              "Mentors must not invite unauthorised people into a session or allow another person to use their KynnectED account."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "5. Digital Safeguarding, Privacy and Data Protection",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "Digital safeguarding protects the personal information, privacy and wellbeing of participants and helps KynnectED maintain a secure online learning environment."
+          },
+          {
+            "kind": "list",
+            "items": [
+              "Only information necessary for matching, communication, safeguarding and programme operation should be collected or accessed.",
+              "Parent or guardian consent is required for participants under 18 before mentoring begins.",
+              "Every mentor-mentee match must be reviewed and approved by a KynnectED administrator before sessions begin.",
+              "Mentors may access only the information required to support their assigned mentee and must keep that information confidential.",
+              "Do not screenshot, download, copy, publish or share mentee information, messages, recordings or session content outside approved KynnectED systems unless specifically authorised.",
+              "Use secure passwords, protect account access and log out when using a shared device.",
+              "Confidentiality does not apply when a safeguarding concern must be reported. Mentors must never promise a mentee that safety-related information will be kept secret."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "6. Session Recording and Review",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "All sessions must be recorded using the approved method, subject to the required participant and guardian consent.",
+              "Mentors are responsible for uploading each session recording to the approved KynnectED system promptly after the session.",
+              "Recordings may be accessed by authorised KynnectED personnel for safeguarding, quality assurance and programme monitoring, and may be available to the mentee for learning review where appropriate.",
+              "Mentors must not retain, edit, distribute or use session recordings for any personal purpose. Any temporary local copy should be deleted after successful upload unless otherwise instructed.",
+              "Recording or photographing a mentee outside the approved session-recording process is prohibited."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "7. Responding to Safeguarding Concerns",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "If a mentee discloses harm, abuse, exploitation, neglect, self-harm, threats or any other safety concern, remain calm, listen and take the concern seriously.",
+              "Do not investigate, interrogate, confront another person or attempt to resolve a safeguarding concern independently.",
+              "Do not promise confidentiality. Explain that information may need to be shared with the appropriate safeguarding lead to keep the student safe.",
+              "Record only the relevant facts and report the concern promptly through KynnectED's designated safeguarding process and, where applicable, the partner learning centre's process.",
+              "If there is an immediate risk of serious harm, follow the emergency procedures provided by KynnectED and the relevant learning centre or responsible adult."
+            ]
+          },
+          {
+            "kind": "heading",
+            "text": "IF YOU ARE UNSURE"
+          },
+          {
+            "kind": "list",
+            "items": [
+              "Do not manage the situation alone. Stop and seek guidance from the designated KynnectED programme or safeguarding lead."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "8. Mentor Screening, Monitoring and Feedback",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Mentors must complete the required application, screening and interview process before approval.",
+              "KynnectED may review session records, attendance, messages and uploaded recordings where necessary for safeguarding and programme quality.",
+              "Students may be invited to complete monthly feedback forms about their mentoring experience.",
+              "Mentors must cooperate with reasonable safeguarding checks, feedback requests and programme reviews throughout their placement.",
+              "KynnectED may pause or change a mentor-mentee pairing where this is considered appropriate for safety, suitability or programme quality."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "9. Academic Conduct",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Support students to understand and complete work independently rather than completing assessed work on their behalf.",
+              "Provide accurate, age-appropriate explanations and acknowledge when you are unsure rather than inventing information.",
+              "Set realistic learning goals and adapt sessions to the mentee's needs, confidence and pace.",
+              "Use only lawful and appropriate learning materials. Do not share copyrighted or restricted materials without permission."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "10. Breaches of this Code",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "Any concern about a mentor's conduct may be reviewed by KynnectED. Depending on the nature and seriousness of the concern, action may include additional guidance, increased supervision, temporary suspension, reassignment or removal from the programme. Serious safeguarding concerns may also be referred to the relevant school, learning centre, parent or guardian, or appropriate authority in accordance with applicable safeguarding procedures."
+          }
+        ]
+      },
+      {
+        "heading": "11. Mentor Declaration",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "By clicking the tick box below, I confirm that:"
+          },
+          {
+            "kind": "list",
+            "items": [
+              "I have read and understood the KynnectED Mentor Code of Conduct and Safeguarding Agreement.",
+              "I agree to follow the requirements in this document and any additional safeguarding instructions provided by KynnectED or a partner learning centre.",
+              "I understand that failure to follow this Code may result in the suspension or termination of my mentoring role.",
+              "I will report safeguarding concerns promptly and will ask for guidance whenever I am unsure."
+            ]
+          },
+          {
+            "kind": "paragraph",
+            "text": "Thank you for helping KynnectED provide safe, consistent and respectful one-to-one support."
+          }
+        ]
+      }
+    ]
+  },
+  "website": {
+    "title": "MENTOR CODE OF CONDUCT & SAFEGUARDING AGREEMENT",
+    "metadata": [
+      {
+        "label": "APPLIES TO",
+        "value": "All KynnectED mentors"
+      },
+      {
+        "label": "VERSION",
+        "value": "1.0"
+      },
+      {
+        "label": "EFFECTIVE",
+        "value": "October 2026"
+      }
+    ],
+    "introduction": "KynnectED is committed to providing a safe, respectful and secure environment for every mentor and mentee. This Code sets the minimum standards expected of all mentors before, during and after participation in the programme.",
+    "expectations_heading": "NON-NEGOTIABLE EXPECTATIONS",
+    "expectations": [
+      "Use only approved KynnectED communication and session channels.",
+      "Maintain professional boundaries and respectful communication at all times.",
+      "Record and upload every approved session in accordance with consent requirements.",
+      "Ensure a responsible adult is present at the mentee's location during each session.",
+      "Report any safeguarding concern promptly through the designated KynnectED process."
+    ],
+    "accompanying_requirements": "This Code should be read alongside any safeguarding or conduct requirements set by Garden International School, partner learning centres, and the mentee's parent or guardian. Where requirements differ, mentors must follow the stricter safeguarding standard.",
+    "sections": [
+      {
+        "heading": "1. Purpose and Scope",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "This Code applies to all KynnectED mentors. By accepting a mentoring role, mentors agree to uphold these standards throughout their involvement with KynnectED, including in sessions, messages, shared resources and any programme-related communication."
+          }
+        ]
+      },
+      {
+        "heading": "2. Professional Conduct and Respectful Communication",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Treat every mentee with dignity, patience, empathy and respect, regardless of background, ability, language, gender, religion, nationality or personal circumstances.",
+              "Use language and teaching materials that are age-appropriate, inclusive and relevant to the learner's educational needs.",
+              "Never use threatening, humiliating, discriminatory, sexualised, romantic or otherwise inappropriate language or behaviour.",
+              "Do not pressure a mentee to discuss personal experiences, family circumstances, displacement, trauma, religion, politics or other sensitive topics unrelated to the learning objective.",
+              "Do not use the mentoring relationship to promote personal, political, commercial or religious interests."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "3. Professional Boundaries",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Keep all mentor-mentee communication within the approved KynnectED platform and approved session tools.",
+              "Do not exchange personal phone numbers, private email addresses, social media accounts, home addresses or other personal contact details.",
+              "Do not arrange private or in-person meetings with a mentee outside the approved KynnectED programme.",
+              "Do not give or request money, personal gifts, passwords, photographs, identity documents or other private information.",
+              "Do not form romantic, sexual or otherwise inappropriate personal relationships with a mentee.",
+              "Remember that the mentor role is educational and supportive. Mentors must not act as counsellors, social workers or legal advisers."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "4. Attendance and Session Conduct",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Attend agreed sessions punctually and prepared with suitable learning materials.",
+              "If a session must be cancelled or rescheduled, give as much notice as reasonably possible through the approved platform.",
+              "Repeated lateness, missed sessions or unreliable attendance may result in a review of the mentor's placement.",
+              "Sessions must take place only at approved times and through approved digital channels.",
+              "A responsible adult designated by the learning centre, parent or guardian must be present at the mentee's location during each session.",
+              "Mentors must not invite unauthorised people into a session or allow another person to use their KynnectED account."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "5. Digital Safeguarding, Privacy and Data Protection",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "Digital safeguarding protects the personal information, privacy and wellbeing of participants and helps KynnectED maintain a secure online learning environment."
+          },
+          {
+            "kind": "list",
+            "items": [
+              "Only information necessary for matching, communication, safeguarding and programme operation should be collected or accessed.",
+              "Parent or guardian consent is required for participants under 18 before mentoring begins.",
+              "Every mentor-mentee match must be reviewed and approved by a KynnectED administrator before sessions begin.",
+              "Mentors may access only the information required to support their assigned mentee and must keep that information confidential.",
+              "Do not screenshot, download, copy, publish or share mentee information, messages, recordings or session content outside approved KynnectED systems unless specifically authorised.",
+              "Use secure passwords, protect account access and log out when using a shared device.",
+              "Confidentiality does not apply when a safeguarding concern must be reported. Mentors must never promise a mentee that safety-related information will be kept secret."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "6. Session Recording and Review",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "All sessions must be recorded using the approved method, subject to the required participant and guardian consent.",
+              "Mentors are responsible for uploading each session recording to the approved KynnectED system promptly after the session.",
+              "Recordings may be accessed by authorised KynnectED personnel for safeguarding, quality assurance and programme monitoring, and may be available to the mentee for learning review where appropriate.",
+              "Mentors must not retain, edit, distribute or use session recordings for any personal purpose. Any temporary local copy should be deleted after successful upload unless otherwise instructed.",
+              "Recording or photographing a mentee outside the approved session-recording process is prohibited."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "7. Responding to Safeguarding Concerns",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "If a mentee discloses harm, abuse, exploitation, neglect, self-harm, threats or any other safety concern, remain calm, listen and take the concern seriously.",
+              "Do not investigate, interrogate, confront another person or attempt to resolve a safeguarding concern independently.",
+              "Do not promise confidentiality. Explain that information may need to be shared with the appropriate safeguarding lead to keep the student safe.",
+              "Record only the relevant facts and report the concern promptly through KynnectED's designated safeguarding process and, where applicable, the partner learning centre's process.",
+              "If there is an immediate risk of serious harm, follow the emergency procedures provided by KynnectED and the relevant learning centre or responsible adult."
+            ]
+          },
+          {
+            "kind": "heading",
+            "text": "IF YOU ARE UNSURE"
+          },
+          {
+            "kind": "list",
+            "items": [
+              "Do not manage the situation alone. Stop and seek guidance from the designated KynnectED programme or safeguarding lead."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "8. Mentor Screening, Monitoring and Feedback",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Mentors must complete the required application, screening and interview process before approval.",
+              "KynnectED may review session records, attendance, messages and uploaded recordings where necessary for safeguarding and programme quality.",
+              "Students may be invited to complete monthly feedback forms about their mentoring experience.",
+              "Mentors must cooperate with reasonable safeguarding checks, feedback requests and programme reviews throughout their placement.",
+              "KynnectED may pause or change a mentor-mentee pairing where this is considered appropriate for safety, suitability or programme quality."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "9. Academic Conduct",
+        "blocks": [
+          {
+            "kind": "list",
+            "items": [
+              "Support students to understand and complete work independently rather than completing assessed work on their behalf.",
+              "Provide accurate, age-appropriate explanations and acknowledge when you are unsure rather than inventing information.",
+              "Set realistic learning goals and adapt sessions to the mentee's needs, confidence and pace.",
+              "Use only lawful and appropriate learning materials. Do not share copyrighted or restricted materials without permission."
+            ]
+          }
+        ]
+      },
+      {
+        "heading": "10. Breaches of this Code",
+        "blocks": [
+          {
+            "kind": "paragraph",
+            "text": "Any concern about a mentor's conduct may be reviewed by KynnectED. Depending on the nature and seriousness of the concern, action may include additional guidance, increased supervision, temporary suspension, reassignment or removal from the programme. Serious safeguarding concerns may also be referred to the relevant school, learning centre, parent or guardian, or appropriate authority in accordance with applicable safeguarding procedures."
+          },
+          {
+            "kind": "paragraph",
+            "text": "Thank you for helping KynnectED provide safe, consistent and respectful one-to-one support."
+          }
+        ]
+      }
+    ]
+  }
+}

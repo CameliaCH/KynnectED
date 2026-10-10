@@ -1,0 +1,19 @@
+{% if pair.can_manage %}
+  {% if lesson.can_upload %}
+    {% if current_user.id == lesson.mentor_id %}<details class="lesson-tools"><summary>Upload recording &amp; mark attendance</summary>{% include "recording_upload.html" %}</details>
+    {% else %}<p class="availability-help lesson-tools">Only the assigned mentor can upload this recording.</p>{% endif %}
+  {% else %}<p class="availability-help lesson-tools">You can upload the recording after the lesson starts.</p>{% endif %}
+  {% if lesson.can_edit %}
+  <details class="lesson-tools"><summary>Edit lesson</summary>
+    <form class="account-form lesson-form" action="{{ url_for('learning.edit_lesson', lesson_id=lesson.id) }}" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      {% with field_prefix=lesson.id %}{% include "lesson_fields.html" %}{% endwith %}
+      <button type="submit" class="btn-signin">Save changes</button>
+    </form>
+  </details>
+  <form class="account-form lesson-tools" action="{{ url_for('learning.cancel_lesson', lesson_id=lesson.id) }}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <button class="room-link-button" type="submit">Cancel lesson</button>
+  </form>
+  {% endif %}
+{% endif %}

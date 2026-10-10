@@ -1,0 +1,8 @@
+<div class="recording-policy">
+  {% if current_user.role == 'mentor' or current_user.is_coordinator %}
+  <p>Upload a lesson recording to mark attendance. Recordings must be uploaded within one week of the lesson.</p>
+  <p>Failure to upload recordings for three lessons may result in removal from the programme.</p>
+  {% else %}
+  <p>Attendance is marked when your mentor uploads the lesson recording. Recordings are due within one week of the lesson.</p>
+  {% endif %}
+</div>

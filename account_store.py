@@ -4,9 +4,23 @@ from contextlib import contextmanager
 import fcntl
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import tempfile
+
+def mentor_is_approved(user):
+    """Existing mentors remain approved; new signups have an explicit pending status."""
+    return bool(user and user.get('role') == 'mentor' and user.get('mentor_approval_status', 'approved') == 'approved')
+
+
+def valid_contact_email(value):
+    if not value or len(value) > 254:
+        return False
+    local, separator, domain = value.partition('@')
+    return bool(separator and len(local) <= 64 and not local.startswith('.') and not local.endswith('.')
+                and '..' not in local and re.fullmatch(r"[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+", local)
+                and re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+", domain))
 
 
 def read_accounts(path):

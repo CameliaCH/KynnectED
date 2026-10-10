@@ -1,24 +1,19 @@
 {% extends "base.html" %}
-
-{% block title %}Log In &middot; KynnectED{% endblock %}
+{% block title %}Login · KynnectED{% endblock %}
 {% block body_class %}interior-page{% endblock %}
-
 {% block content %}
-  <main class="page-hero">
-    <h1>Welcome back!</h1>
-  </main>
-
-  <section class="page-body">
-    <form class="account-form login-form" action="/login-process" method="post">
+<main class="auth-layout wrap">
+  <section class="auth-card" aria-labelledby="login-heading">
+    <h1 id="login-heading">Log in</h1>
+    <p>Access your sessions, messages, and resources.</p>
+    <form class="account-form login-form" action="{{ url_for('login_process') }}" method="post">
       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-      <div class="input-container">
-        <input type="text" placeholder="Username" aria-label="Username" name="username" id="username" autocomplete="off">
-      </div>
-      <div class="input-container">
-        <input type="password" placeholder="Password" aria-label="Password" name="password" id="password" autocomplete="off">
-      </div>
-      <button type="submit" class="btn-signin">Submit</button>
+      <label for="username">Username<input type="text" placeholder="Your username" name="username" id="username" autocomplete="username" required></label>
+      <label for="password">Password<input type="password" placeholder="Your password" name="password" id="password" autocomplete="current-password" required></label>
+      <button type="submit" class="button">Log in</button>
     </form>
-    <p class="account-switch">Don't have an account? <a href="/signup">Sign Up</a></p>
+    <p class="account-switch">Don’t have an account? <a href="{{ url_for('signup') }}">Sign up</a></p>
+    <p class="auth-help">Need help? <a href="{{ url_for('contact') }}">Contact us</a>.</p>
   </section>
+</main>
 {% endblock %}

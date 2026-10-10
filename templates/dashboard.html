@@ -1,56 +1,46 @@
 {% extends "base.html" %}
-{% block title %}Your Dashboard &middot; KynnectED{% endblock %}
+{% block title %}Your Dashboard · KynnectED{% endblock %}
 {% block body_class %}interior-page{% endblock %}
 {% block content %}
-  <main class="page-hero">
-    <h1>Your dashboard</h1>
-    <p class="tagline">Welcome, {{ current_user.name | first | default(current_user.username, true) }}.</p>
-  </main>
-  <section class="page-body workspace-body">
-    {% if current_user.is_coordinator %}
-      <p class="workspace-intro">You have Coordinator access. <a href="{{ url_for('coordinator') }}">Manage participant records and pairings &rarr;</a></p>
-    {% endif %}
-    <div class="workspace-stats">
-      <div class="workspace-stat"><strong>{{ '%.2f' | format(activity.hours) }}</strong><span>Completed learning hours</span></div>
-      <div class="workspace-stat"><strong>{{ activity.completed }}</strong><span>Sessions with attendance</span></div>
-      <div class="workspace-stat"><strong>{{ activity.upcoming | length }}</strong><span>Upcoming / ongoing lessons</span></div>
-      <div class="workspace-stat"><strong>{{ connections | length }}</strong><span>Active pairings</span></div>
-    </div>
-    <p class="availability-help">Learning hours come from uploaded recordings. Uploading a recording marks both participants present. Replacing it updates the same session.</p>
-    <section class="dashboard-upcoming" aria-labelledby="next-lessons-heading">
-      <h2 id="next-lessons-heading">Your next lessons</h2>
-      <p class="availability-help">Times shown in {{ timezone }} (UTC+8).</p>
-      {% for lesson in activity.upcoming[:5] %}
-        <article class="workspace-panel lesson-row">
-          <div><span class="workspace-label">{{ lesson.status }} · {{ lesson.start_label }}</span><h3>{{ lesson.title }}</h3>
-            <p>{{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }} · {{ lesson.planned_minutes }} minutes</p></div>
-          <div class="lesson-actions">
-            <a class="btn-signin" href="{{ lesson.zoom_url }}" target="_blank" rel="noopener noreferrer">Join Zoom</a>
-            <a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id) }}">Open pairing</a>
-          </div>
-        </article>
-      {% else %}<p>No lessons scheduled yet. Open a pairing to see its sessions.</p>{% endfor %}
-    </section>
-    <h2>Your pairings</h2>
-    <p>Open a pairing to access lessons, recordings, attendance, and your private chat.</p>
-    <div class="workspace-grid">
-      {% for connection in connections %}
-        {% set partner = connection.user %}
-        <a class="workspace-panel pairing-card" href="{{ url_for('learning.room', mentor_id=connection.mentor_id, mentee_id=connection.mentee_id) }}">
-          <span class="workspace-label">{{ partner.role | title }}</span>
-          <h3>{{ partner.name | join(' ') }}</h3>
-          <p class="participant-username">@{{ partner.username }}</p>
-          <p><strong>Subjects:</strong> {{ partner.subjects | join(', ') | title }}</p>
-          <p>{{ '%.2f' | format(connection.hours) }} learning hours · {{ connection.completed }} recorded sessions</p>
-          <span class="card-link">Open pairing &rarr;</span>
-        </a>
-      {% else %}
-        <div class="workspace-panel workspace-empty">
-          <h3>Your connections will appear here</h3>
-          <p>Once a coordinator links you with a mentor or mentee, you'll see them on your dashboard.</p>
+<main class="page-body workspace-body dashboard-layout">
+  <aside class="platform-sidebar"><p class="eyebrow">Your mentoring space</p><nav aria-label="Platform navigation"><a href="{{ url_for('dashboard') }}" aria-current="page"><span aria-hidden="true">▦</span> Dashboard</a><a href="#sessions"><span aria-hidden="true">▤</span> Sessions</a><a href="#pairings"><span aria-hidden="true">◎</span> Messages</a><a href="{{ url_for('learning_resources') }}"><span aria-hidden="true">▱</span> Resources</a><a href="#progress"> Progress</a>{% if current_user.role == 'mentor' %}<a href="{{ url_for('code_of_conduct') }}">Code of Conduct</a>{% endif %}{% if current_user.is_coordinator %}<a href="{{ url_for('coordinator') }}"><span aria-hidden="true">⌘</span> Coordinator</a>{% endif %}</nav><div class="profile-mini"><span aria-hidden="true">{{ (current_user.name | first | default(current_user.username, true))[:1] | upper }}</span><strong>{{ current_user.name | join(' ') }}</strong><p>{{ current_user.role | title }} · @{{ current_user.username }}</p><p>{{ current_user.subjects | join(', ') | title }}</p></div></aside>
+  <div class="dashboard-main">
+    <header class="dashboard-heading"><div><h1>Hello, {{ current_user.name | first | default(current_user.username, true) }}.</h1><p>View your sessions, pairings, and learning hours.</p></div><a class="button button-outline" href="#pairings">Open your pairing</a></header>
+    {% if current_user.is_coordinator %}<p class="workspace-intro">You have Coordinator access. <a href="{{ url_for('coordinator') }}">Manage participant records and pairings →</a></p>{% endif %}
+    <section id="progress" aria-label="Your progress"><div class="workspace-stats"><div class="workspace-stat"><strong>{{ '%.2f' | format(activity.hours) }}</strong><span>Completed learning hours</span></div><div class="workspace-stat"><strong>{{ activity.completed }}</strong><span>Sessions with attendance</span></div><div class="workspace-stat"><strong>{{ activity.upcoming | length }}</strong><span>Upcoming / ongoing lessons</span></div><div class="workspace-stat"><strong>{{ connections | length }}</strong><span>Active pairings</span></div></div><p class="availability-help">Learning hours come from uploaded recordings. Uploading a recording marks both participants present. Replacing it updates the same session.</p></section>
+    <section class="dashboard-upcoming" id="sessions" aria-labelledby="next-lessons-heading"><div class="section-heading"><h2 id="next-lessons-heading">Your next sessions</h2><span class="availability-help">{{ timezone }} (UTC+8)</span></div>{% for lesson in activity.upcoming[:5] %}<article class="workspace-panel lesson-row"><div><span class="workspace-label">{{ lesson.status }} · {{ lesson.start_label }}</span><h3>{{ lesson.title }}</h3><p>{{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }} · {{ lesson.planned_minutes }} minutes</p></div><div class="lesson-actions"><a class="btn-signin" href="{{ lesson.zoom_url }}" target="_blank" rel="noopener noreferrer">Join Zoom</a><a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id) }}">Open pairing</a></div></article>{% else %}<div class="empty-state"><h3>No upcoming sessions</h3><p>No lessons scheduled yet. Open a pairing to see its sessions. Mentors can schedule a session from the pairing room.</p></div>{% endfor %}</section>
+    <section class="dashboard-upcoming" id="finished-lessons" aria-labelledby="finished-lessons-heading">
+      <h2 id="finished-lessons-heading">Finished lessons</h2>
+      {% include "recording_policy.html" %}
+      {% for lesson in activity.finished %}
+      <article class="workspace-panel lesson-row recording-dashboard-row">
+        <div><span class="workspace-label">{{ lesson.start_label }}</span><h3>{{ lesson.title }}</h3><p>{{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }}</p>{% if not lesson.recorded_at and current_user.role == 'mentor' %}<p class="availability-help">Upload by {{ lesson.upload_deadline_label }}{% if lesson.upload_overdue %} · Overdue{% endif %}</p>{% if lesson.missing_recording_reason %}<p class="availability-help">Explanation submitted: {{ lesson.missing_recording_label }}</p>{% endif %}{% endif %}</div>
+        <div class="lesson-actions">
+          {% if not lesson.active_pair %}<span class="availability-help">Pairing inactive</span>
+          {% elif lesson.recorded_at and lesson.recording_available %}<a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id) }}">Watch recording</a>
+          {% elif lesson.recorded_at %}<span class="availability-help">Recording expired</span>
+          {% elif current_user.is_coordinator %}<span class="workspace-label">Awaiting upload</span><a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='lesson-' ~ lesson.id) }}">View lesson</a>
+          {% elif current_user.role == 'mentor' %}
+          <span class="workspace-label">Awaiting upload</span><a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='lesson-' ~ lesson.id) }}">Upload recording</a>
+          {% if current_user.id == lesson.mentor_id and not lesson.missing_recording_reason %}<a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='missing-recording-' ~ lesson.id) }}">Don’t have a recording?</a>{% endif %}
+          {% else %}<span class="availability-help">Recording not yet available</span>{% endif %}
         </div>
-      {% endfor %}
-    </div>
-    <p class="workspace-intro"><a href="{{ url_for('learning_resources') }}">Explore learning resources &rarr;</a></p>
-  </section>
+        {% if lesson.cloud_recording %}<p class="availability-help">{{ 'Retention' if lesson.cloud_recording.expiry_label == 'Retained' else 'Expires' }}: {{ lesson.cloud_recording.expiry_label }}</p>{% endif %}
+        {% with review_summary=lesson %}{% include "review_summary.html" %}{% endwith %}
+        {% if not current_user.is_coordinator and current_user.id == lesson.mentor_id and lesson.active_pair and lesson.can_upload %}
+          {% if lesson.recorded_at %}<details class="lesson-tools recording-dashboard-tools"><summary>Replace recording</summary>{% endif %}
+          {% include "recording_upload.html" %}
+          {% if lesson.recorded_at %}</details>{% endif %}
+        {% endif %}
+      </article>
+      {% else %}<p>No finished lessons yet.</p>{% endfor %}
+    </section>
+    <section id="pairings" aria-labelledby="pairings-heading"><h2 id="pairings-heading">Your pairings</h2><p>Open a pairing to view sessions, recordings, notes, and messages.</p><div class="workspace-grid">{% for connection in connections %}{% set partner = connection.user %}{% set room_url = url_for('learning.room', mentor_id=connection.mentor_id, mentee_id=connection.mentee_id) %}<article class="workspace-panel"><span class="workspace-label">{{ partner.role | title }}</span><h3>{{ partner.name | join(' ') }}</h3><p class="participant-username">@{{ partner.username }}</p><p><strong>Subjects:</strong> {{ partner.subjects | join(', ') | title }}</p><p>{{ '%.2f' | format(connection.hours) }} learning hours · {{ connection.completed }} recorded sessions</p><a class="text-link" href="{{ room_url }}">Open pairing →</a><div class="pairing-shortcuts"><a href="{{ room_url }}#lessons">Sessions</a><a href="{{ room_url }}#chat">Messages</a><a href="{{ room_url }}#recordings">Finished lessons</a></div></article>{% else %}<div class="workspace-panel workspace-empty"><h3>Your connections will appear here</h3><p>Once a coordinator links you with a mentor or mentee, you'll see them on your dashboard.</p></div>{% endfor %}</div></section>
+    {% if current_user.role == 'mentor' %}
+    <section class="dashboard-resources dashboard-conduct" aria-labelledby="dashboard-conduct-heading"><div><h2 id="dashboard-conduct-heading">Mentor Code of Conduct</h2><p>Conduct and safeguarding expectations for your mentoring sessions.</p></div><a class="text-link" href="{{ url_for('code_of_conduct') }}">Read Code of Conduct</a></section>
+    {% endif %}
+    <section class="dashboard-resources"><div><h2>Learning resources</h2><p>Subject materials, teaching guides, and lesson templates.</p></div><div class="lesson-actions"><a class="text-link" href="{{ url_for('learning_resources') }}">Explore resources</a>{% if can_submit_materials %}<a class="text-link" href="{{ url_for('materials.submit') }}">Submit slides</a>{% endif %}</div></section>
+  </div>
+</main>
+<script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
 {% endblock %}

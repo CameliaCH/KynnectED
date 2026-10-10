@@ -1,10 +1,21 @@
-<form class="account-form recording-upload" action="{{ url_for('learning.upload_recording', lesson_id=lesson.id) }}" method="post" enctype="multipart/form-data"
-      data-return-url="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='recordings') }}">
+<form class="account-form recording-upload" action="{{ url_for('recordings.start_upload', session_id=lesson.id) }}" method="post"
+      data-recording-version="{{ lesson.cloud_recording.id if lesson.cloud_recording else (lesson.recording_filename or '') }}">
   <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-  <label for="recording-{{ lesson.id }}">{{ 'Replace recording' if lesson.recorded_at else 'Upload Zoom recording' }}</label>
-  <input type="file" name="recording" id="recording-{{ lesson.id }}" accept="video/mp4,video/webm,.mp4,.webm" required>
-  <p class="availability-help">MP4 (H.264) or WebM, up to {{ max_upload_mb }} MB. A successful upload marks both participants present and counts the video's duration as learning time.</p>
-  <button class="btn-signin" type="submit">{{ 'Replace recording' if lesson.recorded_at else 'Upload & mark attendance' }}</button>
+  <h4>Upload Session Recording</h4>
+  <p class="availability-help">{{ lesson.start_label }} · {{ lesson.mentee.name | join(' ') }}</p>
+  <label for="recording-{{ lesson.id }}">{{ 'Replace recording' if lesson.recorded_at else 'Recording file' }}</label>
+  <input type="file" name="recording" id="recording-{{ lesson.id }}" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov" required>
+  <p class="availability-help">MP4 or MOV (H.264), or WebM. Up to 2 GB.</p>
+  <label class="recording-consent" for="recording-consent-{{ lesson.id }}">
+    <input type="checkbox" name="confirmed" id="recording-consent-{{ lesson.id }}" required>
+    <span>I confirm that this recording belongs to the session shown above and that any unnecessary local copy will be deleted after the upload has been successfully completed.</span>
+  </label>
+  {% if lesson.recorded_at %}<p class="availability-help">Replacing updates this session’s attendance and hours. Safeguarding-retained versions remain saved.</p>{% endif %}
+  <div class="lesson-actions">
+    <button class="btn-signin" type="submit" disabled>{{ 'Replace recording' if lesson.recorded_at else 'Upload & mark attendance' }}</button>
+    <button class="room-link-button upload-cancel" type="button" hidden>Cancel upload</button>
+  </div>
   <progress class="upload-progress" max="100" value="0" hidden aria-label="Recording upload progress"></progress>
   <p class="upload-status" role="status" aria-live="polite"></p>
+  <a class="room-text-link upload-watch" hidden>Watch recording</a>
 </form>

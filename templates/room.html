@@ -10,9 +10,10 @@
   <div class="page-body workspace-body room-body">
     <nav class="workspace-nav" aria-label="Pairing room sections">
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
-      <a href="#lessons">Lessons</a><a href="#recordings">Recordings</a><a href="#chat">Chat</a>
+      <a href="#lessons">Lessons</a><a href="#recordings">Finished lessons</a><a href="#chat">Chat</a>
       {% if current_user.is_coordinator %}<a href="{{ url_for('learning.monitor') }}">Lesson monitoring</a>{% endif %}
     </nav>
+    {% if pair.read_only %}<p class="room-notice">Read-only admin view.</p>{% endif %}
     {% if not pair.active %}<p class="room-notice">This pairing is inactive. Its history is available to coordinators, but new lessons, recordings, and messages are disabled.</p>{% endif %}
     <div class="workspace-stats room-stats">
       <div class="workspace-stat"><strong>{{ '%.2f' | format(summary.hours) }}</strong><span>Learning hours together</span></div>
@@ -40,58 +41,47 @@
           <h3>{{ lesson.title }}</h3>
           <p>{{ lesson.start_label }} · {{ lesson.planned_minutes }} minutes planned</p>
           {% if pair.active %}<a class="btn-signin" href="{{ lesson.zoom_url }}" target="_blank" rel="noopener noreferrer">Open Zoom meeting</a>{% endif %}
-          {% if pair.can_manage %}
-            {% if lesson.can_upload %}<details class="lesson-tools"><summary>Upload recording &amp; mark attendance</summary>{% include "recording_upload.html" %}</details>
-            {% else %}<p class="availability-help lesson-tools">You can upload the recording after the lesson starts.</p>{% endif %}
-            <details class="lesson-tools"><summary>Edit lesson</summary>
-              <form class="account-form lesson-form" action="{{ url_for('learning.edit_lesson', lesson_id=lesson.id) }}" method="post">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                {% with field_prefix=lesson.id %}{% include "lesson_fields.html" %}{% endwith %}
-                <button type="submit" class="btn-signin">Save changes</button>
-              </form>
-            </details>
-            <form class="account-form lesson-tools" action="{{ url_for('learning.cancel_lesson', lesson_id=lesson.id) }}" method="post">
-              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-              <button class="room-link-button" type="submit">Cancel lesson</button>
-            </form>
-          {% endif %}
+          {% include "lesson_management.html" %}
         </article>
-      {% else %}<p>No lessons awaiting a recording. {{ 'Add a lesson above to get started.' if pair.can_manage else 'Your mentor or coordinator will add your lessons here.' }}</p>{% endfor %}
+      {% else %}<p>No upcoming lessons. {{ 'Add a lesson above to get started.' if pair.can_manage else 'The mentor will add lessons here.' }}</p>{% endfor %}
       {% if cancelled %}<details class="lesson-tools"><summary>Cancelled lessons ({{ cancelled | length }})</summary>
         {% for lesson in cancelled %}<p>{{ lesson.title }} · {{ lesson.start_label }}</p>{% endfor %}
       </details>{% endif %}
     </section>
 
     <section id="recordings" class="room-section" aria-labelledby="recordings-heading">
-      <h2 id="recordings-heading">Recordings &amp; attendance</h2>
-      {% for lesson in recordings %}
-        <article class="workspace-panel lesson-card">
+      <h2 id="recordings-heading">Finished lessons</h2>
+      {% include "recording_policy.html" %}
+      {% for lesson in finished %}
+        <article class="workspace-panel lesson-card" id="lesson-{{ lesson.id }}">
+          {% if lesson.recorded_at %}
           <span class="workspace-label">Attendance recorded · Both participants present</span>
           <h3>{{ lesson.title }}</h3>
           <p>{{ lesson.start_label }} · {{ lesson.duration_label }} of recorded learning</p>
-          <video class="lesson-video" controls preload="metadata" aria-label="{{ lesson.title }} recording">
-            <source src="{{ url_for('learning.recording', lesson_id=lesson.id) }}" type="{{ lesson.recording_mimetype }}">
-            Your browser does not support this video. Use the download link below.
-          </video>
-          <a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id, download=1) }}">Download recording</a>
-          {% if pair.can_manage %}<details class="lesson-tools"><summary>Replace this recording</summary>
+          {% if lesson.recording_available %}
+          {% if not lesson.cloud_recording %}
+          <video class="lesson-video" controls preload="metadata" aria-label="{{ lesson.title }} recording"><source src="{{ url_for('learning.recording', lesson_id=lesson.id) }}" type="{{ lesson.recording_mimetype }}"></video>
+          {% endif %}
+          <a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id) }}">Watch recording</a>
+          {% if not lesson.cloud_recording %}<a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id, download=1) }}">Download recording</a>{% endif %}
+          {% else %}<p class="availability-help">Recording expired. Attendance and hours remain saved.</p>{% endif %}
+          {% if lesson.cloud_recording %}<p class="availability-help">Uploaded: {{ lesson.cloud_recording.upload_label }} · {{ 'Retention' if lesson.cloud_recording.expiry_label == 'Retained' else 'Expires' }}: {{ lesson.cloud_recording.expiry_label }}</p>{% endif %}
+          {% if pair.can_manage and current_user.id == lesson.mentor_id and lesson.can_upload %}<details class="lesson-tools"><summary>Replace this recording</summary>
             <p class="availability-help">This updates the existing session's hours; it does not add another attendance entry.</p>
             {% include "recording_upload.html" %}
           </details>{% endif %}
-          {% if current_user.is_coordinator %}
-            <details class="lesson-tools review-tools" {% if not lesson.reviewed_at %}open{% endif %}>
-              <summary>{{ 'Reviewed' if lesson.reviewed_at else 'Quality review needed' }}</summary>
-              <form class="account-form lesson-form" action="{{ url_for('learning.review_recording', lesson_id=lesson.id) }}" method="post">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="recording_version" value="{{ lesson.recording_filename }}">
-                <label for="review-{{ lesson.id }}">Coordinator notes (only coordinators can see these)</label>
-                <textarea id="review-{{ lesson.id }}" name="review_note" rows="3" maxlength="2000">{{ lesson.review_note or '' }}</textarea>
-                <button class="btn-signin" type="submit">{{ 'Update review' if lesson.reviewed_at else 'Mark reviewed' }}</button>
-              </form>
-            </details>
+          {% with review_summary=lesson %}{% include "review_summary.html" %}{% endwith %}
+          {% if current_user.is_coordinator and not lesson.reviewed_at %}<p class="availability-help">Quality review needed</p>{% endif %}
+          {% else %}
+          <span class="workspace-label">{{ 'Awaiting upload' if current_user.role == 'mentor' or current_user.is_coordinator else 'Recording not yet available' }}</span>
+          <h3>{{ lesson.title }}</h3>
+          <p>{{ lesson.start_label }} · {{ lesson.planned_minutes }} minutes planned</p>
+          {% if pair.can_manage %}<p class="availability-help">Upload by {{ lesson.upload_deadline_label }} · {{ timezone }}{% if lesson.upload_overdue %} · Overdue{% endif %}</p>{% endif %}
+          {% include "lesson_management.html" %}
           {% endif %}
+          {% include "missing_recording_form.html" %}
         </article>
-      {% else %}<p>Recordings will appear here after a lesson's video is uploaded.</p>{% endfor %}
+      {% else %}<p>No finished lessons yet.</p>{% endfor %}
     </section>
 
     <section id="chat" class="room-section workspace-panel" aria-labelledby="chat-heading"
@@ -119,4 +109,5 @@
     </section>
   </div>
   <script src="{{ url_for('static', filename='js/room.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
 {% endblock %}

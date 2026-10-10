@@ -1,0 +1,22 @@
+<article class="conduct-document">
+  <header>
+    <h3 class="conduct-document-title">{{ conduct_document.title }}</h3>
+    <dl class="conduct-document-meta">{% for item in conduct_document.metadata %}<div><dt>{{ item.label }}</dt><dd>{{ item.value }}</dd></div>{% endfor %}</dl>
+    <p>{{ conduct_document.introduction }}</p>
+  </header>
+  <section class="conduct-expectations">
+    <h3>{{ conduct_document.expectations_heading }}</h3>
+    <ul>{% for item in conduct_document.expectations %}<li>{{ item }}</li>{% endfor %}</ul>
+  </section>
+  <p class="conduct-accompanying">{{ conduct_document.accompanying_requirements }}</p>
+  {% for section in conduct_document.sections %}
+  <section class="conduct-document-section">
+    <h3>{{ section.heading }}</h3>
+    {% for block in section.blocks %}
+      {% if block.kind == 'list' %}<ul>{% for item in block['items'] %}<li>{{ item }}</li>{% endfor %}</ul>
+      {% elif block.kind == 'heading' %}<h4>{{ block.text }}</h4>
+      {% else %}<p>{{ block.text }}</p>{% endif %}
+    {% endfor %}
+  </section>
+  {% endfor %}
+</article>

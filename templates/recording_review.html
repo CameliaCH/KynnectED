@@ -1,0 +1,28 @@
+{% if current_user.is_coordinator %}
+<details class="lesson-tools review-tools" open>
+  <summary>{{ recording.review_label }}</summary>
+  {% if recording.reviewed_at %}
+  {% with review_summary=recording %}{% include "review_summary.html" %}{% endwith %}
+  {% else %}
+  <form class="account-form lesson-form" action="{{ url_for('recordings.mark_reviewed', recording_id=recording.id) }}" method="post">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    {% with review_id=recording.id %}{% include "review_fields.html" %}{% endwith %}
+  </form>
+  {% endif %}
+  {% if not review.safeguarding_flag and recording.available %}
+  <details class="safeguarding-action">
+    <summary>Flag Safeguarding Concern</summary>
+    <form class="account-form lesson-form" action="{{ url_for('recordings.flag_concern', recording_id=recording.id) }}" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label for="safeguarding-{{ recording.id }}">Safeguarding notes (private)</label>
+      <textarea id="safeguarding-{{ recording.id }}" name="safeguarding_note" rows="3" maxlength="2000"></textarea>
+      <label class="recording-consent"><input type="checkbox" name="confirm_flag" value="yes" required><span>I confirm this recording must be retained for a safeguarding concern, beyond the normal seven-day retention period.</span></label>
+      <button class="btn-signin" type="submit">Confirm safeguarding flag</button>
+    </form>
+  </details>
+  {% elif review.safeguarding_flag %}
+  <p class="room-notice">Retained for safeguarding. Automatic expiry does not apply.</p>
+  {% if review.safeguarding_note %}<p class="private-recording-note">{{ review.safeguarding_note }}</p>{% endif %}
+  {% endif %}
+</details>
+{% endif %}

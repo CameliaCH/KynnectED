@@ -15,6 +15,7 @@
       <div class="workspace-stat"><strong>{{ unpaired }}</strong><span>People without a pairing</span></div>
     </div>
     <div class="workspace-grid">
+      <section class="workspace-panel"><h2>Pending mentors <span class="export-count">({{ pending_mentors | length }})</span></h2><p>Review new applications and contact mentors before approving them.</p><a class="btn-signin" href="{{ url_for('mentor_approvals') }}">Review mentors</a></section>
       <section class="workspace-panel">
         <h2>Make a connection</h2>
         <p>Review each person's subjects, preferences, and availability, then choose who to connect. Both mentors and mentees can have multiple pairings.</p>
@@ -24,6 +25,9 @@
         <h2>Participant records</h2>
         <p>Browse separate mentor and mentee tables, including their linked account IDs. Download the latest CSVs whenever you need them.</p>
         <a class="btn-signin" href="{{ url_for('export') }}">View records &amp; CSVs</a>
+      </section>
+      <section class="workspace-panel">
+        <h2>Resource approvals</h2><p>Review mentor slides before adding them to the resource library.</p><a class="btn-signin" href="{{ url_for('materials.review_queue') }}">Review submissions</a>
       </section>
       <section class="workspace-panel">
         <h2>Lesson quality &amp; attendance</h2>

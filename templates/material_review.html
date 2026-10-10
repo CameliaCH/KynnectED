@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Resource approvals · KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="page-hero"><h1>Resource approvals</h1><p class="tagline">Review slides before they appear in the library.</p></main>
+<section class="page-body workspace-body">
+  {% include "coordinator_nav.html" %}
+  {% for material in submissions %}
+  <article class="workspace-panel material-card">
+    <span class="workspace-label">{{ 'Declined' if material.status == 'rejected' else material.status | title }} · {{ folders.get(material.folder, material.folder) }}</span>
+    <h2>{{ material.title }}</h2><p>Submitted by {{ material.author }}</p>
+    <a class="room-text-link" href="{{ url_for('materials.download', material_id=material.id) }}">Download and review slides</a>
+    {% if material.status == 'pending' %}<form class="account-form lesson-form material-review-form" action="{{ url_for('materials.review', material_id=material.id) }}" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label for="feedback-{{ material.id }}">Feedback (optional)</label><textarea id="feedback-{{ material.id }}" name="review_note" rows="2" maxlength="1000"></textarea>
+      <div class="button-row"><button class="btn-signin" name="action" value="approve" type="submit">Approve</button><button class="button button-outline" name="action" value="reject" type="submit">Decline</button></div>
+    </form>{% elif material.review_note %}<p>Feedback: {{ material.review_note }}</p>{% endif %}
+  </article>
+  {% else %}<p>No slide submissions yet.</p>{% endfor %}
+</section>
+{% endblock %}

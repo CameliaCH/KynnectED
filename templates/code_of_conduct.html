@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Mentor Code of Conduct · KynnectED{% endblock %}
+{% block content %}
+<main class="wrap conduct-page">
+  <section class="editorial-hero">
+    <h1>Mentor Code of Conduct</h1>
+    <p class="large-intro">Code of Conduct & Safeguarding Agreement · Version {{ mentor_conduct_version }}</p>
+    <div class="button-row"><a class="button" href="{{ url_for('static', filename='documents/KynnectED_Mentor_Code_of_Conduct_Website.pdf') }}" target="_blank" rel="noopener noreferrer">Open PDF</a><a class="button button-outline" href="{{ url_for('static', filename='documents/KynnectED_Mentor_Code_of_Conduct_Website.pdf') }}" download>Download PDF</a></div>
+  </section>
+  {% include "conduct_text.html" %}
+</main>
+{% endblock %}

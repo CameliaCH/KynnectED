@@ -1,28 +1,25 @@
 {% extends "base.html" %}
-
-{% block title %}Contact &middot; KynnectED{% endblock %}
-
+{% from "contact_actions.html" import message_icon, team_application_link %}
+{% block title %}Contact · KynnectED{% endblock %}
 {% block content %}
-  <main class="page-hero">
-    <h1>Contact</h1>
-    <p class="tagline">Have a question? Reach out and we'll get back to you.</p>
-  </main>
-
-  <section class="page-body">
-    <form class="contact-form">
-      <label>
-        Name
-        <input type="text" name="name" placeholder="Your name">
-      </label>
-      <label>
-        Email
-        <input type="email" name="email" placeholder="you@example.com">
-      </label>
-      <label>
-        Message
-        <textarea name="message" rows="5" placeholder="How can we help?"></textarea>
-      </label>
-      <button type="submit" class="btn-signin">Send message</button>
-    </form>
+{% set topic = request.args.get('topic', '') %}
+<main class="wrap contact-page">
+  <section class="editorial-hero">
+    <h1>{% if topic == 'partnership' %}Partner with KynnectED{% elif topic == 'team' %}Join our team{% else %}Contact us{% endif %}</h1>
+    <p class="large-intro">{% if topic == 'partnership' %}Tell us about your learning centre and your students’ needs.{% elif topic == 'team' %}Complete the application form to join a KynnectED team.{% else %}Contact us about mentoring, partnerships, or volunteering.{% endif %}</p>
   </section>
+  <div class="contact-grid">
+    <article class="contact-card">
+      <div class="contact-card-heading"><h2>{% if topic == 'team' %}Team application{% else %}Email{% endif %}</h2>{{ message_icon() }}</div>
+      {% if topic == 'team' %}
+        <p>Technical, Outreach, Resources, or Logistics.</p>
+        {{ team_application_link('button') }}
+      {% else %}
+        <a class="contact-address" href="mailto:kynnect.org@gmail.com">kynnect.org@gmail.com</a>
+        <p>{% if topic == 'partnership' %}Include your centre’s name and a contact person.{% else %}For programme enquiries.{% endif %}</p>
+        <a class="button" href="mailto:kynnect.org@gmail.com?subject={{ ('KynnectED — Learning centre partnership' if topic == 'partnership' else 'Hello KynnectED') | urlencode }}">Write an email</a>
+      {% endif %}
+    </article>
+  </div>
+</main>
 {% endblock %}

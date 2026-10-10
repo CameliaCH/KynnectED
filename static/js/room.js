@@ -1,43 +1,23 @@
 (() => {
-  for (const form of document.querySelectorAll('.recording-upload')) {
-    form.addEventListener('submit', event => {
-      event.preventDefault();
-      const button = form.querySelector('button');
-      if (button.disabled) return;
-      const progress = form.querySelector('progress');
-      const status = form.querySelector('.upload-status');
-      const request = new XMLHttpRequest();
-      request.open('POST', form.action);
-      request.setRequestHeader('X-CSRF-Token', form.querySelector('[name="_csrf_token"]').value);
-      request.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
-      button.disabled = true;
-      progress.hidden = false;
-      status.textContent = 'Uploading recording…';
-      request.upload.addEventListener('progress', event => {
-        if (event.lengthComputable) {
-          progress.value = event.loaded / event.total * 100;
-          status.textContent = progress.value === 100 ? 'Checking the recording and updating attendance…' : `Uploading: ${Math.round(progress.value)}%`;
-        }
-      });
-      const failed = message => {
-        button.disabled = false;
-        progress.hidden = true;
-        status.textContent = message;
-      };
-      request.addEventListener('load', () => {
-        if (request.status >= 200 && request.status < 300 && !request.responseURL.includes('/login')) {
-          // Changing only the anchor does not load the newly saved recording.
-          window.location.hash = new URL(form.dataset.returnUrl, window.location.href).hash;
-          window.location.reload();
-        } else {
-          const page = new DOMParser().parseFromString(request.responseText, 'text/html');
-          failed(page.querySelector('.form-error')?.textContent || 'Upload failed. Please reload the page, check your login, and try again.');
-        }
-      });
-      request.addEventListener('error', () => failed('The upload did not finish. Check your connection and try again.'));
-      request.send(new FormData(form));
-    });
+  for (const form of document.querySelectorAll('.missing-recording-form')) {
+    const reason = form.querySelector('[name="reason"]');
+    const explanation = form.querySelector('[data-other-explanation]');
+    const note = form.querySelector('[name="note"]');
+    const updateExplanation = () => {
+      const other = reason.value === 'other';
+      explanation.hidden = !other;
+      note.required = other;
+      note.disabled = !other;
+    };
+    reason.addEventListener('change', updateExplanation);
+    updateExplanation();
   }
+  const openMissingRecording = () => {
+    const target = document.getElementById(window.location.hash.slice(1));
+    if (target?.matches('.missing-recording-details')) target.open = true;
+  };
+  window.addEventListener('hashchange', openMissingRecording);
+  openMissingRecording();
 
   const chat = document.getElementById('chat');
   if (!chat) return;

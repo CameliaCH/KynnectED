@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Submit slides · KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="wrap folder-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{{ url_for('learning_resources') }}">Resources</a><span aria-hidden="true">/</span><span>Submit slides</span></nav>
+  <h1>Share your slides</h1><p>{% if not current_user.is_coordinator %}For students only. {% endif %}A coordinator will review your material before it appears in the library.</p>
+  <form class="account-form lesson-form workspace-panel material-submission-form" method="post" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+    <label for="material-title">Title</label><input id="material-title" name="title" required maxlength="120">
+    <label for="material-folder">Folder</label><select id="material-folder" name="folder" required><option value="">Choose a folder</option>{% for slug, title in folders.items() %}<option value="{{ slug }}" {% if request.args.get('folder') == slug %}selected{% endif %}>{{ title }}</option>{% endfor %}</select>
+    <label for="material-file">Slide file</label><input id="material-file" name="material" type="file" accept=".pdf,.pptx" required>
+    <p class="availability-help">PDF or PowerPoint (.pptx), up to {{ max_material_mb }} MB.</p><button class="btn-signin" type="submit">Submit for approval</button>
+  </form>
+  <section class="room-section" aria-labelledby="my-submissions"><h2 id="my-submissions">Your submissions</h2>
+    {% for material in submissions %}<article class="workspace-panel material-card"><span class="workspace-label">{{ 'Declined' if material.status == 'rejected' else material.status | title }} · {{ all_folders.get(material.folder, material.folder) }}</span><h3>{{ material.title }}</h3>{% if material.review_note %}<p>Coordinator feedback: {{ material.review_note }}</p>{% endif %}<a class="room-text-link" href="{{ url_for('materials.download', material_id=material.id) }}">Download submitted file</a></article>{% else %}<p>No submissions yet.</p>{% endfor %}
+  </section>
+</main>
+{% endblock %}

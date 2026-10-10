@@ -9,22 +9,52 @@
     <h2>Learning hours by participant</h2>
     <p class="availability-help">Hours are based on video duration. Uploading a recording marks the mentor and mentee present for that session.</p>
     <div class="table-scroll" role="region" aria-label="Participant learning hours" tabindex="0">
-      <table><thead><tr><th scope="col">Participant</th><th scope="col">Role</th><th scope="col">Learning hours</th><th scope="col">Attendance</th><th scope="col">Next lesson</th></tr></thead>
+      <table><thead><tr><th scope="col">Participant</th><th scope="col">Role</th><th scope="col">Learning hours</th><th scope="col">Attendance</th><th scope="col">Missing-recording reports</th><th scope="col">Next lesson</th></tr></thead>
         <tbody>{% for person in people %}<tr>
-          <td>{{ person.user.name | join(' ') }}<span class="participant-username">@{{ person.user.username }}</span></td>
+          {% set report_summary = recording_reports.get(person.user.id, {}) %}
+          <td><span {% if report_summary.get('flagged') %}class="recording-flagged-name"{% endif %}>{{ person.user.name | join(' ') }}</span><span class="participant-username">@{{ person.user.username }}</span>{% if report_summary.get('flagged') %}<span class="recording-flag-label">Recording review needed</span>{% endif %}</td>
           <td>{{ person.user.role | title }}</td><td>{{ '%.2f' | format(person.hours) }}</td><td>{{ person.completed }} sessions</td>
+          <td>{% if person.user.role == 'mentor' %}{{ report_summary.get('count', 0) }}{% if report_summary.get('count') %}<details><summary>Reasons</summary>{% for reason, count in report_summary.reason_counts.items() %}{% if count %}<p>{{ missing_recording_reasons[reason] }}: {{ count }}</p>{% endif %}{% endfor %}</details>{% endif %}{% else %}—{% endif %}</td>
           <td>{% if person.upcoming %}<a class="room-text-link" href="{{ url_for('learning.room', mentor_id=person.upcoming[0].mentor_id, mentee_id=person.upcoming[0].mentee_id) }}">{{ person.upcoming[0].start_label }}</a>{% else %}Not scheduled{% endif %}</td>
-        </tr>{% else %}<tr><td colspan="5">No participants yet.</td></tr>{% endfor %}</tbody>
+        </tr>{% else %}<tr><td colspan="6">No participants yet.</td></tr>{% endfor %}</tbody>
       </table>
     </div>
+    <section class="recording-review-list" aria-labelledby="recording-review-heading">
+      <h2 id="recording-review-heading">Recording review</h2>
+      {% for recording in cloud_recordings %}
+      <article class="workspace-panel lesson-card" id="recording-{{ recording.id }}">
+        <span class="workspace-label">{{ recording.review_label }}{% if not recording.active %} · Previous version{% endif %}</span>
+        <h3>{{ recording.title }}</h3>
+        <p>{{ recording.session_label }} · {{ recording.mentor.name | join(' ') }} &amp; {{ recording.mentee.name | join(' ') }}</p>
+        <p class="availability-help">Uploaded: {{ recording.upload_label }} · {{ 'Retention' if recording.safeguarding_flag else 'Expires' }}: {{ recording.expiry_label }}</p>
+        {% if recording.available %}<a class="room-text-link" href="{{ url_for('recordings.watch', recording_id=recording.id) }}">Watch Recording</a>{% else %}<p class="availability-help">Recording expired</p>{% endif %}
+        {% set review = recording %}{% include "recording_review.html" %}
+      </article>
+      {% else %}<p>No cloud recordings uploaded yet.</p>{% endfor %}
+    </section>
     <h2>All lessons</h2>
     {% for lesson in lessons %}
-      <article class="workspace-panel lesson-card lesson-row">
+      <article class="workspace-panel lesson-card lesson-row" id="lesson-review-{{ lesson.id }}">
         <div><span class="workspace-label">{{ lesson.status }}{% if not lesson.active_pair %} · Pairing inactive{% endif %}</span>
-          <h3>{{ lesson.title }}</h3><p>{{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }}<br>{{ lesson.start_label }}</p>
-          {% if lesson.recorded_at %}<p>{{ lesson.duration_label }} · {{ 'Reviewed' if lesson.reviewed_at else 'Quality review needed' }}</p>{% endif %}</div>
-        <a class="btn-signin" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='recordings' if lesson.recorded_at else 'lessons') }}">{{ 'Watch & review' if lesson.recorded_at else 'Open pairing' }}</a>
+          <h3>{{ lesson.title }}</h3><p><span {% if recording_reports.get(lesson.mentor_id, {}).get('flagged') %}class="recording-flagged-name"{% endif %}>{{ lesson.mentor.name | join(' ') }}</span> &amp; {{ lesson.mentee.name | join(' ') }}<br>{{ lesson.start_label }}</p>
+          {% if lesson.recorded_at %}<p>{{ lesson.duration_label }} · {{ 'Reviewed' if lesson.reviewed_at else 'Quality review needed' }}</p>{% elif lesson.finished %}<p>Upload by {{ lesson.upload_deadline_label }}{% if lesson.upload_overdue %} · Overdue{% endif %}</p>{% endif %}
+          {% if lesson.missing_recording_reason %}<p>Explanation: {{ lesson.missing_recording_label }}{% if lesson.missing_recording_note %} — {{ lesson.missing_recording_note }}{% endif %}</p>{% endif %}</div>
+        <a class="btn-signin" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='recordings' if lesson.finished else 'lessons') }}">View pairing</a>
+        {% if lesson.recorded_at and not lesson.cloud_recording %}
+        <details class="lesson-tools review-tools">
+          <summary>{{ 'Reviewed' if lesson.reviewed_at else 'Quality review needed' }}</summary>
+          {% if lesson.reviewed_at %}
+          {% with review_summary=lesson %}{% include "review_summary.html" %}{% endwith %}
+          {% else %}
+          <form class="account-form lesson-form" action="{{ url_for('learning.review_recording', lesson_id=lesson.id) }}" method="post">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="recording_version" value="{{ lesson.recording_filename }}">
+            {% with review_id=lesson.id %}{% include "review_fields.html" %}{% endwith %}
+          </form>
+          {% endif %}
+        </details>
+        {% endif %}
       </article>
-    {% else %}<p>No lessons yet. Open a pairing to schedule the first session.</p>{% endfor %}
+    {% else %}<p>No lessons yet. Mentors can schedule sessions from their pairing rooms.</p>{% endfor %}
   </section>
 {% endblock %}

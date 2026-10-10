@@ -1,15 +1,23 @@
 from flask import Flask, render_template, request, redirect, send_file, abort, session, g, url_for, flash
-import json, argon2, csv, io, os, secrets, hmac
-from datetime import timedelta
+import json, argon2, csv, io, os, secrets, hmac, hashlib
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
+from zoneinfo import ZoneInfo
 import click
-from account_store import read_accounts, edit_accounts, session_secret
-from learning import learning, activity_for_user, room_summary
+from account_store import read_accounts, edit_accounts, session_secret, mentor_is_approved, valid_contact_email
+from learning import learning, activity_for_user, room_summary, recording_report_summaries, MISSING_RECORDING_REASONS
+from materials import materials, approved_materials, approved_counts, submission_folders
+from recordings import recordings
 
 ph = argon2.PasswordHasher()
 
 app = Flask(__name__)
+
+MENTOR_CONDUCT_VERSION = "1.0"
+MENTOR_CONDUCT_SIGNUP_FILE = Path(app.static_folder) / "documents/KynnectED_Mentor_Code_of_Conduct_Signup.pdf"
+MENTOR_CONDUCT_DOCUMENT_SHA256 = hashlib.sha256(MENTOR_CONDUCT_SIGNUP_FILE.read_bytes()).hexdigest()
+CONDUCT_DOCUMENTS = json.loads((Path(__file__).parent / "content/mentor-conduct.json").read_text())
 
 app.config.update(
     TEMPLATES_AUTO_RELOAD=True,
@@ -21,12 +29,22 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     LEARNING_DATABASE=os.environ.get("KYNNECTED_LEARNING_DATABASE", str(Path(app.instance_path) / "learning.sqlite3")),
     RECORDINGS_DIR=os.environ.get("KYNNECTED_RECORDINGS_DIR", str(Path(app.instance_path) / "recordings")),
+    MATERIALS_DIR=os.environ.get("KYNNECTED_MATERIALS_DIR", str(Path(app.instance_path) / "materials")),
+    MAX_MATERIAL_BYTES=25 * 1024 * 1024,
     LESSON_TIMEZONE="Asia/Kuala_Lumpur",
     MENTEES_MANAGE_LESSONS=False,
-    MAX_CONTENT_LENGTH=1024 * 1024 * 1024,
+    MAX_CONTENT_LENGTH=26 * 1024 * 1024,
+    MAX_RECORDING_BYTES=2 * 1024 * 1024 * 1024,
+    R2_ACCOUNT_ID=os.environ.get('R2_ACCOUNT_ID', ''),
+    R2_ACCESS_KEY_ID=os.environ.get('R2_ACCESS_KEY_ID', ''),
+    R2_SECRET_ACCESS_KEY=os.environ.get('R2_SECRET_ACCESS_KEY', ''),
+    R2_BUCKET_NAME=os.environ.get('R2_BUCKET_NAME', ''),
+    R2_ENDPOINT=os.environ.get('R2_ENDPOINT', ''),
     FFPROBE_BIN=os.environ.get("FFPROBE_BIN", "ffprobe"),
 )
 app.register_blueprint(learning)
+app.register_blueprint(materials)
+app.register_blueprint(recordings)
 
 
 def read_users():
@@ -47,6 +65,12 @@ def load_current_user():
         if g.current_user is None:
             session.clear()
     if request.method == "POST":
+        if request.endpoint == 'learning.upload_recording':
+            abort(410, description='Video uploads now go directly to private storage. Reload the lesson page.')
+        if request.blueprint == 'recordings' and g.current_user is None:
+            return {'error': 'Please log in to access recordings.'}, 401
+        if request.endpoint == 'materials.submit' and request.content_length is not None and request.content_length > app.config['MAX_MATERIAL_BYTES'] + 64 * 1024:
+            abort(413)
         expected = session.get("csrf_token", "")
         if not expected:
             abort(400, description="This form has expired. Reload the page and try again.")
@@ -57,12 +81,13 @@ def load_current_user():
 
 @app.context_processor
 def account_context():
-    return {"current_user": g.current_user, "csrf_token": csrf_token}
+    return {"current_user": g.current_user, "csrf_token": csrf_token,
+            "can_submit_materials": bool(g.current_user and (mentor_is_approved(g.current_user) or g.current_user.get('is_coordinator') is True))}
 
 
 @app.after_request
 def protect_account_responses(response):
-    if request.endpoint in {"dashboard", "coordinator", "pairings", "export", "export_csv"}:
+    if request.endpoint in {"dashboard", "coordinator", "pairings", "export", "export_csv", "mentor_approvals", "approve_mentor"}:
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -93,7 +118,10 @@ def coordinator_required(view):
 @app.errorhandler(503)
 def account_error(error):
     if error.code == 413:
-        return render_template("error.html", error="This upload is too large. The recording limit is 1 GB."), 413
+        if request.endpoint == 'materials.submit':
+            limit = app.config['MAX_MATERIAL_BYTES'] // (1024 * 1024)
+            return render_template('error.html', error=f'This upload is too large. The slide material limit is {limit} MB.'), 413
+        return render_template("error.html", error="This request is too large. Use the direct recording upload for videos up to 2 GB."), 413
     return render_template("error.html", error=error.description), error.code
 
 
@@ -111,14 +139,17 @@ def set_coordinator(username, revoke):
 
 @app.route('/signup')
 def signup():
-	return render_template("signup.html")
+    return render_template("signup.html", conduct_document=CONDUCT_DOCUMENTS["signup"],
+                           mentor_conduct_version=MENTOR_CONDUCT_VERSION,
+                           mentor_conduct_document_sha256=MENTOR_CONDUCT_DOCUMENT_SHA256)
 
-def build_users_csv(users):
+def build_users_csv(users, role=None):
 	output = io.StringIO()
 
 	fieldnames = [
 		"id",
 		"username",
+		"email",
 		"firstname",
 		"lastname",
 		"subjects",
@@ -137,6 +168,15 @@ def build_users_csv(users):
 		"saturday",
 	]
 
+	if role in {"mentor", "pending-mentor"}:
+		fieldnames += ["mentor_approval_status", "mentor_applied_at", "mentor_approved_at", "mentor_approved_by"]
+	if role == "mentor":
+		fieldnames += ["missing_recording_count", "recording_flagged"]
+		fieldnames += ["missing_recording_" + reason for reason in MISSING_RECORDING_REASONS]
+		fieldnames += ["missing_recording_responses"]
+		reports = recording_report_summaries()
+	else:
+		reports = {}
 	writer = csv.DictWriter(output, fieldnames=fieldnames)
 	writer.writeheader()
 
@@ -157,6 +197,7 @@ def build_users_csv(users):
 		row = {
 			"id": user.get("id"),
 			"username": user.get("username"),
+			"email": user.get("email", ""),
 			"firstname": name[0] if len(name) > 0 else "",
 			"lastname": name[1] if len(name) > 1 else "",
 			"subjects": " ".join(user.get("subjects", [])),
@@ -171,6 +212,18 @@ def build_users_csv(users):
 		for day in days:
 			row[day] = " ".join(availability.get(day, []))
 
+		if role in {"mentor", "pending-mentor"}:
+			row["mentor_approval_status"] = user.get("mentor_approval_status", "approved")
+			for field in ("mentor_applied_at", "mentor_approved_at", "mentor_approved_by"):
+				row[field] = user.get(field, "")
+		if role == "mentor":
+			summary = reports.get(user["id"], {})
+			row["missing_recording_count"] = summary.get("count", 0)
+			row["recording_flagged"] = "yes" if summary.get("flagged") else "no"
+			for reason in MISSING_RECORDING_REASONS:
+				row["missing_recording_" + reason] = summary.get("reason_counts", {}).get(reason, 0)
+			row["missing_recording_responses"] = json.dumps(summary.get("reports", []), ensure_ascii=False)
+
 		writer.writerow(row)
 
 	return output.getvalue()
@@ -180,7 +233,19 @@ EXPORT_ROLES = {"mentees": "mentee", "mentors": "mentor"}
 
 
 def users_for_role(users, role):
-	return [user for user in users if str(user.get("role", "")).strip().lower() == role]
+	return [user for user in users if str(user.get("role", "")).strip().lower() == role
+			and (role != "mentor" or mentor_is_approved(user))]
+
+
+def pending_mentor_rows(users):
+    rows = []
+    for user in users:
+        if user.get('role') == 'mentor' and user.get('mentor_approval_status') == 'pending':
+            row = dict(user)
+            applied = user.get('mentor_applied_at')
+            row['applied_label'] = datetime.fromisoformat(applied).astimezone(ZoneInfo(app.config['LESSON_TIMEZONE'])).strftime('%d %b %Y') if applied else 'Not recorded'
+            rows.append(row)
+    return rows
 
 
 @app.route('/export')
@@ -190,20 +255,20 @@ def export():
 
 	groups = []
 	for slug, role in EXPORT_ROLES.items():
-		raw = build_users_csv(users_for_role(users, role))
+		raw = build_users_csv(users_for_role(users, role), role=role)
 		rows = list(csv.reader(io.StringIO(raw)))
 		groups.append({"slug": slug, "label": slug.title(), "headers": rows[0], "rows": rows[1:], "raw": raw})
 
-	return render_template("table.html", groups=groups)
+	return render_template("table.html", groups=groups, pending_mentors=pending_mentor_rows(users))
 
 
 @app.route('/export/<group>.csv')
 @coordinator_required
 def export_csv(group):
-	if group not in EXPORT_ROLES:
+	if group not in EXPORT_ROLES and group != 'pending-mentors':
 		abort(404)
 	users = read_users()
-	raw = build_users_csv(users_for_role(users, EXPORT_ROLES[group]))
+	raw = build_users_csv(pending_mentor_rows(users), role='pending-mentor') if group == 'pending-mentors' else build_users_csv(users_for_role(users, EXPORT_ROLES[group]), role=EXPORT_ROLES[group])
 	return send_file(
 		io.BytesIO(raw.encode("utf-8-sig")),
 		mimetype="text/csv",
@@ -219,6 +284,15 @@ def signup_process():
         return {"error": "1"}
     if request.form.get("role") not in {"mentor", "mentee"}:
         abort(400, description="Choose either mentor or mentee when signing up.")
+    if request.form["role"] == "mentor" and (
+        request.form.get("mentor_conduct_accepted") != "yes"
+        or request.form.get("mentor_conduct_version") != MENTOR_CONDUCT_VERSION
+        or request.form.get("mentor_conduct_document_sha256") != MENTOR_CONDUCT_DOCUMENT_SHA256
+    ):
+        return {"error": "conduct", "message": "Please read and accept the current Mentor Code of Conduct before signing up."}, 400
+    email = request.form.get('email', '').strip()
+    if request.form['role'] == 'mentor' and not valid_contact_email(email):
+        return {'error': 'email', 'message': 'Enter a valid email address so the team can contact you about your mentor application.'}, 400
     try:
         availability = json.loads(request.form["days"])
         subjects = json.loads(request.form["selectedSubjects"])
@@ -253,7 +327,36 @@ def signup_process():
                 availability,
             )),
         })
+        if request.form["role"] == "mentor":
+            users[-1].update(email=email, mentor_approval_status='pending',
+                             mentor_applied_at=datetime.now(timezone.utc).isoformat())
+            users[-1]["mentor_code_of_conduct"] = {
+                "version": MENTOR_CONDUCT_VERSION,
+                "document_sha256": MENTOR_CONDUCT_DOCUMENT_SHA256,
+                "accepted_at": datetime.now(timezone.utc).isoformat(),
+            }
     return {"error": "none"}
+
+
+@app.get('/coordinator/mentor-approvals')
+@coordinator_required
+def mentor_approvals():
+    return render_template('mentor_approvals.html', pending_mentors=pending_mentor_rows(read_users()))
+
+
+@app.post('/coordinator/mentors/<int:mentor_id>/approve')
+@coordinator_required
+def approve_mentor(mentor_id):
+    with edit_accounts(app.config['USERS_FILE']) as users:
+        mentor = next((user for user in users if user['id'] == mentor_id and user.get('role') == 'mentor'), None)
+        if mentor is None:
+            abort(404)
+        if mentor.get('mentor_approval_status') != 'pending':
+            abort(409, description='This mentor is already approved or is not awaiting approval.')
+        mentor.update(mentor_approval_status='approved', mentor_approved_by=g.current_user['id'],
+                      mentor_approved_at=datetime.now(timezone.utc).isoformat())
+    flash('Mentor approved. They now appear in the mentor list and can be paired with a student.', 'success')
+    return redirect(url_for('mentor_approvals'))
 
 @app.route('/error1')
 def error1():
@@ -311,9 +414,11 @@ def pairing_rows(users):
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    if g.current_user.get('role') == 'mentor' and not mentor_is_approved(g.current_user) and not g.current_user.get('is_coordinator'):
+        return render_template('mentor_pending.html')
     users = read_users()
     own_id = str(g.current_user["id"])
-    partners = [user for user in users if str(user["id"]) != own_id and (
+    partners = [user for user in users if (user.get('role') != 'mentor' or mentor_is_approved(user)) and str(user["id"]) != own_id and (
         str(user["id"]) in linked_ids(g.current_user) or own_id in linked_ids(user)
     )]
     connections = []
@@ -336,6 +441,7 @@ def coordinator():
     mentees = users_for_role(users, "mentee")
     paired_ids = {person["id"] for pair in pairs for person in pair.values()}
     return render_template("coordinator.html", mentors=mentors, mentees=mentees, pairs=pairs,
+                           pending_mentors=pending_mentor_rows(users),
                            unpaired=sum(user["id"] not in paired_ids for user in mentors + mentees))
 
 
@@ -347,7 +453,7 @@ def pairings():
     fields = {"id", "username", "name", "role", "subjects", "age", "gender",
               "gender_preferred", "age_preferred", "availability", "partners"}
     profiles = [{key: value for key, value in user.items() if key in fields}
-                for user in users if user.get("role") in {"mentor", "mentee"}]
+                for user in users if user.get("role") == "mentee" or mentor_is_approved(user)]
     return render_template("pairings.html", mentors=users_for_role(users, "mentor"),
                            mentees=users_for_role(users, "mentee"), pairs=pairing_rows(users), profiles=profiles)
 
@@ -365,6 +471,8 @@ def save_pairing():
                        and user.get("role") == "mentee"), None)
         if mentor is None or mentee is None or mentor["id"] == mentee["id"]:
             abort(400, description="Select an existing mentor and an existing mentee.")
+        if action == 'link' and not mentor_is_approved(mentor):
+            abort(409, description='Approve this mentor before linking them to a student.')
         already_linked = str(mentee["id"]) in linked_ids(mentor) and str(mentor["id"]) in linked_ids(mentee)
         for person, partner in [(mentor, mentee), (mentee, mentor)]:
             remaining = [value for value in person.get("partners", []) if str(value) != str(partner["id"])]
@@ -388,7 +496,55 @@ def contact():
 
 @app.route("/learning-resources")
 def learning_resources():
-	return render_template("learning_resources.html")
+    counts = approved_counts()
+    counts['safeguarding-guidance'] = counts.get('safeguarding-guidance', 0) + 1
+    return render_template("learning_resources.html", resource_groups=RESOURCE_GROUPS, material_counts=counts)
+
+
+# Public information pages and the placeholder library use the existing account system.
+RESOURCE_GROUPS = {
+    "mentors": [("teaching-guides", "Teaching guides"), ("lesson-templates", "Lesson templates"),
+                ("safeguarding-guidance", "Safeguarding guidance"), ("mentor-handbook", "Mentor handbook")],
+    "students": [("english", "English"), ("maths", "Maths"), ("science", "Science"),
+                 ("languages", "Languages"), ("study-skills", "Study skills")],
+}
+app.config['RESOURCE_FOLDERS'] = {slug: title for folders in RESOURCE_GROUPS.values() for slug, title in folders}
+app.config['STUDENT_RESOURCE_FOLDERS'] = tuple(slug for slug, _ in RESOURCE_GROUPS['students'])
+
+
+@app.route("/about")
+def about():
+    return render_template("about.html")
+
+
+@app.route("/code-of-conduct")
+def code_of_conduct():
+    return render_template("code_of_conduct.html", conduct_document=CONDUCT_DOCUMENTS["website"],
+                           mentor_conduct_version=MENTOR_CONDUCT_VERSION)
+
+
+@app.route("/students-and-centres")
+def students_centres():
+    return render_template("students_centres.html")
+
+
+@app.route("/volunteer")
+def volunteer():
+    return render_template("volunteer.html")
+
+
+@app.route("/learning-resources/<folder>")
+@login_required
+def resource_folder(folder):
+    for audience, folders in RESOURCE_GROUPS.items():
+        for slug, title in folders:
+            if slug == folder:
+                response = app.make_response(render_template("resource_folder.html", folder_title=title, audience=audience,
+                                                            folder_slug=slug, materials=approved_materials(slug),
+                                                            can_submit_materials=slug in submission_folders(g.current_user)))
+                response.headers["Cache-Control"] = "no-store"
+                return response
+    abort(404)
 
 
 if __name__ == "__main__":

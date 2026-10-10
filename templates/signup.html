@@ -42,7 +42,7 @@
             </div>
         </div>
 
-        <span class="signup-options" id="part2" style="display: none;">
+        <div class="signup-options" id="part2" style="display: none;">
             <span class="role" id="mentor">
                 <img src="/static/img/mentor.png" width="100%" alt="Mentor">
             </span>
@@ -50,7 +50,12 @@
             <span class="role" id="mentee">
                 <img src="/static/img/mentee.png" width="100%" alt="Mentee">
             </span>
-        </span>
+            <div class="mentor-email-field" id="mentor-email-field" hidden>
+                <label for="email">Contact email</label>
+                <input type="email" name="email" id="email" autocomplete="email" maxlength="254" disabled>
+                <p class="availability-help">Your mentor application will need admin approval.</p>
+            </div>
+        </div>
 
         <span class="signup-options" id="part3" style="display: none;">
             <span class="subject" id="maths">
@@ -159,6 +164,8 @@
     <p class="account-switch">Already own an account? <a href="/login">Log In</a></p>
   </section>
 
+    {% include "mentor_conduct_dialog.html" %}
+
     <script>
         const availabilityPreview = {{ availability_preview | tojson }};
         const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -166,6 +173,94 @@
         let gender_own = "none";
         let gender_preferred = [];
         let age_preferred = [];
+
+        const mentorConductDialog = document.getElementById("mentor-conduct-dialog");
+        const mentorConductCheckbox = document.getElementById("mentor-conduct-accepted");
+        const mentorConductConfirm = document.getElementById("conduct-confirm");
+        let signupInFlight = false;
+
+        const updateConductConfirmation = () => {
+            mentorConductConfirm.disabled = signupInFlight || !mentorConductCheckbox.checked;
+        };
+        mentorConductCheckbox.addEventListener("change", updateConductConfirmation);
+        document.getElementById("conduct-close").addEventListener("click", () => mentorConductDialog.close());
+        document.getElementById("conduct-back").addEventListener("click", () => mentorConductDialog.close());
+        mentorConductDialog.addEventListener("cancel", event => {
+            if (signupInFlight) event.preventDefault();
+        });
+
+        const submitSignup = async () => {
+            if (signupInFlight) return;
+            if (role === "mentor" && !mentorConductCheckbox.checked) {
+                mentorConductDialog.showModal();
+                return;
+            }
+            const data = new URLSearchParams({
+                _csrf_token: document.querySelector('.signup-form input[name="_csrf_token"]').value,
+                username: document.getElementById("username").value,
+                email: role === "mentor" ? document.getElementById("email").value.trim() : "",
+                firstname: document.getElementById("firstname").value,
+                surname: document.getElementById("surname").value,
+                age: document.getElementById("age").value,
+                password: document.getElementById("password").value,
+                role: role, selectedSubjects: JSON.stringify(selectedSubjects),
+                gender_own: gender_own, gender_preferred: JSON.stringify(gender_preferred),
+                age_preferred: JSON.stringify(age_preferred), days: JSON.stringify(days),
+            });
+            if (role === "mentor") {
+                data.set("mentor_conduct_accepted", "yes");
+                data.set("mentor_conduct_version", mentorConductDialog.dataset.version);
+                data.set("mentor_conduct_document_sha256", mentorConductDialog.dataset.documentSha256);
+            }
+            signupInFlight = true;
+            document.getElementById("next").disabled = true;
+            document.getElementById("back").disabled = true;
+            document.getElementById("conduct-close").disabled = true;
+            document.getElementById("conduct-back").disabled = true;
+            mentorConductCheckbox.disabled = true;
+            updateConductConfirmation();
+            document.getElementById("conduct-signup-error").hidden = true;
+            document.getElementById("error").classList.remove("show");
+            try {
+                const response = await fetch('/signup-process', { method: 'POST', body: data });
+                const result = response.headers.get("Content-Type")?.includes("application/json")
+                    ? await response.json() : {};
+                if (response.ok && result.error === "none") {
+                    window.location.assign("/login");
+                } else if (result.error === "1" || result.error === "2") {
+                    window.location.assign(`/error${result.error}`);
+                } else {
+                    if (result.error === "conduct") mentorConductCheckbox.checked = false;
+                    throw new Error(result.message || "We couldn’t complete your signup. Reload the page and try again.");
+                }
+            } catch (error) {
+                const message = error instanceof TypeError
+                    ? "Couldn’t connect. Check your connection and try again." : error.message;
+                if (mentorConductDialog.open) {
+                    const notice = document.getElementById("conduct-signup-error");
+                    notice.textContent = message;
+                    notice.hidden = false;
+                } else {
+                    document.getElementById("error").textContent = message;
+                    document.getElementById("error").classList.add("show");
+                }
+            } finally {
+                signupInFlight = false;
+                document.getElementById("next").disabled = false;
+                document.getElementById("back").disabled = false;
+                document.getElementById("conduct-close").disabled = false;
+                document.getElementById("conduct-back").disabled = false;
+                mentorConductCheckbox.disabled = false;
+                updateConductConfirmation();
+            }
+        };
+        mentorConductConfirm.addEventListener("click", () => {
+            if (role === "mentor" && mentorConductCheckbox.checked) submitSignup();
+        });
+        document.querySelector(".signup-form").addEventListener("submit", event => {
+            event.preventDefault();
+            nextsection();
+        });
 
         const nextsection = () => {
             if (document.getElementById("next").disabled) return;
@@ -209,6 +304,13 @@
                         document.getElementById("error").classList.remove("show");
                     }, 500);
                 } else if (role == "mentor") {
+                    const email = document.getElementById("email");
+                    if (!availabilityPreview && (!email.value.trim() || !email.checkValidity())) {
+                        document.getElementById("error").textContent = "Enter a valid contact email for your mentor application.";
+                        document.getElementById("error").classList.add("show");
+                        email.focus();
+                        return;
+                    }
                     document.getElementById("overlay").classList.add("visible");
                     setTimeout(() => {
                         document.getElementById("part2").style.display = "none";
@@ -300,7 +402,7 @@
                     document.getElementById("part7").style.display = "flex";
                     document.getElementById("question").innerHTML = "What age range would you prefer to be matched with? (You can choose more than one option)"
                     document.getElementById("overlay").classList.remove("visible");
-                    document.getElementById("next").textContent = availabilityPreview ? "Finish preview" : "Sign up";
+                    document.getElementById("next").textContent = availabilityPreview ? "Finish preview" : role === "mentor" ? "Review Code of Conduct" : "Sign up";
                     document.getElementById("error").classList.remove("show");
                 }, 500);
             }
@@ -324,13 +426,13 @@
                     document.getElementById("next").disabled = true;
                     return;
                 }
-                let data = new URLSearchParams({ _csrf_token: document.querySelector('.signup-form input[name="_csrf_token"]').value, username: document.getElementById("username").value, firstname: document.getElementById("firstname").value, surname: document.getElementById("surname").value, age: document.getElementById("age").value, password: document.getElementById("password").value, role: role, selectedSubjects: JSON.stringify(selectedSubjects), gender_own: gender_own, gender_preferred: JSON.stringify(gender_preferred), age_preferred: JSON.stringify(age_preferred), days: JSON.stringify(days)});
-                fetch('/signup-process', { method: 'POST', body: data }).then(response => response.json())
-                .then(data => {
-                    if (data.error == "none") location.href = "/login";
-                    if (data.error == "1") location.href = "/error1";
-                    if (data.error == "2") location.href = "/error2";
-                });
+                if (role === "mentor") {
+                    document.getElementById("conduct-signup-error").hidden = true;
+                    updateConductConfirmation();
+                    mentorConductDialog.showModal();
+                    return;
+                }
+                submitSignup();
             }
         }
 
@@ -417,12 +519,22 @@
             document.getElementById("mentor").style.backgroundColor = "#888";
             document.getElementById("mentee").style.backgroundColor = "#333";
             role = "mentor";
+            document.getElementById("mentor-email-field").hidden = false;
+            document.getElementById("email").disabled = false;
+            document.getElementById("email").required = !availabilityPreview;
+            mentorConductCheckbox.checked = false;
+            updateConductConfirmation();
         });
 
         document.getElementById("mentee").addEventListener("click", () => {
             document.getElementById("mentee").style.backgroundColor = "#888";
             document.getElementById("mentor").style.backgroundColor = "#333";
             role = "mentee";
+            document.getElementById("mentor-email-field").hidden = true;
+            document.getElementById("email").disabled = true;
+            document.getElementById("email").required = false;
+            mentorConductCheckbox.checked = false;
+            updateConductConfirmation();
         });
 
         document.getElementById("male-own").addEventListener("click", () => {

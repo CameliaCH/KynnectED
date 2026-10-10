@@ -1,0 +1,9 @@
+{% macro message_icon() -%}
+<a class="message-link" href="mailto:kynnect.org@gmail.com" aria-label="Email KynnectED" title="Email KynnectED">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 11.5a8.5 8.5 0 0 1-8.5 8.5H4l-1 1V11.5A8.5 8.5 0 0 1 11.5 3h1a8.5 8.5 0 0 1 8.5 8.5Z"/><path d="M8 9h8M8 13h5"/></svg>
+</a>
+{%- endmacro %}
+
+{% macro team_application_link(class_name='button button-dark') -%}
+<a class="{{ class_name }}" href="https://docs.google.com/forms/d/e/1FAIpQLSdDApW5uAM2Y8G1AoxtirqixgmN4EdbRocklzfXt3goiscYKw/viewform" target="_blank" rel="noopener noreferrer">Join Our Team</a>
+{%- endmacro %}

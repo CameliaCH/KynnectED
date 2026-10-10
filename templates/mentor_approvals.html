@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Mentor approvals · KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="page-hero"><h1>Mentor approvals</h1><p class="tagline">Review new mentors and contact them before approval.</p></main>
+<section class="page-body workspace-body export-body">{% include "coordinator_nav.html" %}{% include "pending_mentors_table.html" %}</section>
+{% endblock %}

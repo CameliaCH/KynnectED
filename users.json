@@ -328,7 +328,8 @@
         ],
         "role": "mentee",
         "partners": [
-            5
+            5,
+            8
         ],
         "availability": {
             "sunday": [
@@ -353,5 +354,65 @@
                 "empty"
             ]
         }
+    },
+    {
+        "id": 8,
+        "username": "cameliatest2",
+        "password": "$argon2id$v=19$m=65536,t=3,p=4$OjfYkFR4bk1aWmqaAopAxA$pOcKzyexblm6ilO+SHQ+zc5ZlIlR2e+Q271Urvy6jdg",
+        "name": [
+            "Camelia",
+            "Chew"
+        ],
+        "subjects": [
+            "maths",
+            "english",
+            "malay"
+        ],
+        "age": 17,
+        "gender": "female",
+        "gender_preferred": [
+            "opposite"
+        ],
+        "age_preferred": [
+            "same-age"
+        ],
+        "role": "mentor",
+        "partners": [
+            7
+        ],
+        "availability": {
+            "sunday": [
+                "empty"
+            ],
+            "monday": [
+                "08:00",
+                "10:00"
+            ],
+            "tuesday": [
+                "empty"
+            ],
+            "wednesday": [
+                "empty"
+            ],
+            "thursday": [
+                "empty"
+            ],
+            "friday": [
+                "empty"
+            ],
+            "saturday": [
+                "empty"
+            ]
+        },
+        "email": "cameliachew18@gmail.com",
+        "mentor_approval_status": "approved",
+        "mentor_applied_at": "2026-10-10T06:30:57.134910+00:00",
+        "mentor_code_of_conduct": {
+            "version": "1.0",
+            "document_sha256": "b5757608220d7020ba4efd1b753e41ca9a2a6a29106aee1c0ed22f7b0ae692df",
+            "accepted_at": "2026-10-10T06:30:57.134939+00:00"
+        },
+        "mentor_approved_by": 5,
+        "mentor_approved_at": "2026-10-10T06:32:49.954629+00:00"
     }
 ]

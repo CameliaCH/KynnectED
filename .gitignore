@@ -2,3 +2,7 @@ __pycache__/
 *.py[cod]
 instance/
 users.json.lock
+.env
+.env.*
+!.env.example
+.venv/

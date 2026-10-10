@@ -1,14 +1,9 @@
 {% extends "base.html" %}
-
-{% block title %}Learning Resources &middot; KynnectED{% endblock %}
-
+{% block title %}Resources · KynnectED{% endblock %}
 {% block content %}
-  <main class="page-hero">
-    <h1>Learning Resources</h1>
-    <p class="tagline">Guides and materials to support mentees and mentors.</p>
-  </main>
-
-  <section class="page-body">
-    <p>Resources will be added here soon.</p>
-  </section>
+<main class="wrap resource-page">
+  <section class="editorial-hero"><h1>Learning resources</h1><p class="large-intro">Teaching guides and subject materials for mentors and students.</p><div class="library-notice"><span aria-hidden="true">▤</span><p>{{ 'Open a folder to view materials.' if current_user else 'Log in to open a folder.' }}</p>{% if not current_user %}<a class="text-link" href="{{ url_for('login') }}">Log in</a>{% elif can_submit_materials %}<a class="text-link" href="{{ url_for('materials.submit') }}">Submit slides</a>{% endif %}</div></section>
+  {% for audience, folders in resource_groups.items() %}<section class="resource-section" aria-labelledby="heading-{{ audience }}"><div class="section-intro"><div><h2 id="heading-{{ audience }}">For {{ audience }}</h2></div><span class="muted">{{ folders | length }} folders</span></div><div class="folder-grid">{% for slug, title in folders %}<a class="folder-card" href="{{ url_for('resource_folder', folder=slug) }}" {% if not current_user %}data-locked-folder="{{ title }}"{% endif %}><svg class="folder-icon" viewBox="0 0 48 40" fill="none" aria-hidden="true"><path d="M3 9a5 5 0 0 1 5-5h12l5 5h15a5 5 0 0 1 5 5v18a5 5 0 0 1-5 5H8a5 5 0 0 1-5-5Z" fill="currentColor"/><path d="M3 15h42" stroke="#463828" stroke-opacity=".2"/></svg><h3>{{ title }}</h3><div><span>{% set count = material_counts.get(slug, 0) %}{{ count ~ ' material' ~ ('s' if count != 1 else '') if count else 'Materials coming soon' }}</span><span aria-hidden="true">{{ '↗' if current_user else '⌑' }}</span></div><span class="sr-only">{{ 'Open folder' if current_user else 'Log in to open folder' }}</span></a>{% endfor %}</div></section>{% endfor %}
+</main>
+{% if not current_user %}<dialog id="resource-login" aria-labelledby="resource-login-title"><form method="dialog"><button class="dialog-close" aria-label="Close" autofocus>×</button></form><span class="dialog-symbol" aria-hidden="true">▤</span><h2 id="resource-login-title">Log in to open this folder.</h2><p id="resource-login-description">Resources are available to KynnectED members.</p><a id="resource-login-link" class="button" href="{{ url_for('login') }}">Log in to continue</a><p class="dialog-signup">New here? <a href="{{ url_for('signup') }}">Create an account</a></p></dialog>{% endif %}
 {% endblock %}

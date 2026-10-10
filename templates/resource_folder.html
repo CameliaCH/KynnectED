@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ folder_title }} · KynnectED Resources{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="wrap folder-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb"><a href="{{ url_for('learning_resources') }}">Resources</a><span aria-hidden="true">/</span><span>For {{ audience }}</span></nav>
+  <div class="section-heading"><h1>{{ folder_title }}</h1>{% if can_submit_materials %}<a class="button button-outline" href="{{ url_for('materials.submit', folder=folder_slug) }}">Submit slides</a>{% endif %}</div>
+  {% if materials or folder_slug == 'safeguarding-guidance' %}
+  <div class="material-grid">
+    {% if folder_slug == 'safeguarding-guidance' %}
+    <article class="workspace-panel material-card"><span class="workspace-label">Safeguarding · PDF</span><h2>Mentor Code of Conduct</h2><div class="lesson-actions"><a class="text-link" href="{{ url_for('code_of_conduct') }}">Read Code of Conduct</a><a class="room-text-link" href="{{ url_for('static', filename='documents/KynnectED_Mentor_Code_of_Conduct_Website.pdf') }}" download>Download PDF</a></div></article>
+    {% endif %}
+    {% for material in materials %}<article class="workspace-panel material-card"><span class="workspace-label">{{ 'PDF' if material.filename.endswith('.pdf') else 'PowerPoint' }} · {{ '%.1f' | format(material.size_bytes / (1024 * 1024)) }} MB</span><h2>{{ material.title }}</h2><a class="text-link" href="{{ url_for('materials.download', material_id=material.id) }}">Download slides</a></article>{% endfor %}
+  </div>
+  {% else %}<div class="folder-empty"><span class="empty-folder-icon" aria-hidden="true">▤</span><h2>No materials yet</h2><p>{{ folder_title }} materials haven’t been added yet—check back soon.</p><a class="button button-outline" href="{{ url_for('learning_resources') }}">Back to all resources</a></div>{% endif %}
+</main>
+{% endblock %}

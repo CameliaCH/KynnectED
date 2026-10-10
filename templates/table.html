@@ -10,6 +10,7 @@
   </main>
   <section class="page-body export-body">
     {% include "coordinator_nav.html" %}
+    {% include "pending_mentors_table.html" %}
     {% for group in groups %}
     <section class="export-group" aria-labelledby="{{ group.slug }}-heading">
       <div class="export-group-header">
@@ -27,9 +28,10 @@
           </thead>
           <tbody>
               {% for row in group.rows %}
+                  {% set flagged = 'recording_flagged' in group.headers and row[group.headers.index('recording_flagged')] == 'yes' %}
                   <tr>
                       {% for cell in row %}
-                          <td>{{ cell }}</td>
+                          <td {% if flagged and group.headers[loop.index0] in ['firstname', 'lastname'] %}class="recording-flagged-name"{% endif %}>{{ cell }}{% if flagged and group.headers[loop.index0] == 'firstname' %}<span class="recording-flag-label">Recording review needed</span>{% endif %}</td>
                       {% endfor %}
                   </tr>
               {% else %}
