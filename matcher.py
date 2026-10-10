@@ -13,6 +13,7 @@ def matching_results(users, include_scores=True):
     for i in range(len(data)):
         for j in range(i+1, len(data)):
             if i != j:
+                if data[i]["role"] == data[j]["role"]: continue
                 pairs.append([data[i], data[j]])
 
     for i in pairs:
