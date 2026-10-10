@@ -692,6 +692,12 @@ body {
   border-radius: 12px;
 }
 
+.signup-options #other-own img,
+.signup-options .gender-preferred img,
+.signup-options .age-preferred img {
+  filter: brightness(0);
+}
+
 .form-actions {
   display: flex;
   gap: 12px;

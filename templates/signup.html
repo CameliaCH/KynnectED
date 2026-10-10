@@ -559,9 +559,9 @@
         });
 
         document.getElementById("same-preferred").addEventListener("click", () => {
-            if (gender_preferred.includes("same") && document.getElementById("same-preferred").style.backgroundColor == "#888") {
+            if (gender_preferred.includes("same")) {
                 document.getElementById("same-preferred").style.backgroundColor = "#333";
-                gender_preferred.pop(gender_preferred.indexOf("same"));
+                gender_preferred.splice(gender_preferred.indexOf("same"), 1);
             } else {
                 document.getElementById("same-preferred").style.backgroundColor = "#888";
                 gender_preferred.push("same");
@@ -569,9 +569,9 @@
         });
 
         document.getElementById("opposite-preferred").addEventListener("click", () => {
-            if (gender_preferred.includes("opposite") && document.getElementById("opposite-preferred").style.backgroundColor == "#888") {
+            if (gender_preferred.includes("opposite")) {
                 document.getElementById("opposite-preferred").style.backgroundColor = "#333";
-                gender_preferred.pop(gender_preferred.indexOf("opposite"));
+                gender_preferred.splice(gender_preferred.indexOf("opposite"), 1);
             } else {
                 document.getElementById("opposite-preferred").style.backgroundColor = "#888";
                 gender_preferred.push("opposite");
@@ -579,9 +579,9 @@
         });
 
         document.getElementById("younger-preferred").addEventListener("click", () => {
-            if (age_preferred.includes("younger") && document.getElementById("younger-preferred").style.backgroundColor == "#888") {
+            if (age_preferred.includes("younger")) {
                 document.getElementById("younger-preferred").style.backgroundColor = "#333";
-                age_preferred.pop(age_preferred.indexOf("younger"));
+                age_preferred.splice(age_preferred.indexOf("younger"), 1);
             } else {
                 document.getElementById("younger-preferred").style.backgroundColor = "#888";
                 age_preferred.push("younger");
@@ -589,9 +589,9 @@
         });
 
         document.getElementById("same-age-preferred").addEventListener("click", () => {
-            if (age_preferred.includes("same-age") && document.getElementById("older-preferred").style.backgroundColor == "#888") {
+            if (age_preferred.includes("same-age")) {
                 document.getElementById("same-age-preferred").style.backgroundColor = "#333";
-                age_preferred.pop(age_preferred.indexOf("same-age"));
+                age_preferred.splice(age_preferred.indexOf("same-age"), 1);
             } else {
                 document.getElementById("same-age-preferred").style.backgroundColor = "#888";
                 age_preferred.push("same-age");
@@ -599,9 +599,9 @@
         });
 
         document.getElementById("older-preferred").addEventListener("click", () => {
-            if (age_preferred.includes("older") && document.getElementById("older-preferred").style.backgroundColor == "#888") {
+            if (age_preferred.includes("older")) {
                 document.getElementById("older-preferred").style.backgroundColor = "#333";
-                age_preferred.pop(age_preferred.indexOf("older"));
+                age_preferred.splice(age_preferred.indexOf("older"), 1);
             } else {
                 document.getElementById("older-preferred").style.backgroundColor = "#888";
                 age_preferred.push("older");
