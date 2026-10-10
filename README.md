@@ -34,8 +34,7 @@ connection. Deployment must preserve the database and material directory.
 
 The visual refresh lives in `static/css/redesign.css`, layered over existing
 platform component styles. The original logo and classroom image are reused.
-Instagram links to `https://www.instagram.com/kynnected_org/`; LinkedIn links to
-`https://www.linkedin.com/in/kynnected-malaysia-9672bb442`. Team portraits are still
+Instagram links to `https://www.instagram.com/kynnected_org/`. Team portraits are still
 pending. Contact details appear in
 `templates/base.html`, `templates/contact.html`, and the safeguarding section
 of `templates/students_centres.html`.

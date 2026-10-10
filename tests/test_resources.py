@@ -175,12 +175,13 @@ class ResourceTests(unittest.TestCase):
             self.assertEqual(self.review(material['id'], **changes).status_code, 400)
         self.assertEqual(self.submissions()[0]['status'], 'pending')
 
-    def test_library_links_conduct_submission_and_linkedin(self):
+    def test_library_links_conduct_submission_and_instagram(self):
         self.auth(1)
         html = self.client.get('/learning-resources').get_data(as_text=True)
         self.assertIn('href="/learning-resources/submit"', html)
         self.assertIn('1 material', html)
-        self.assertIn('https://www.linkedin.com/in/kynnected-malaysia-9672bb442', html)
+        self.assertIn('https://www.instagram.com/kynnected_org/', html)
+        self.assertNotIn('linkedin.com', html)
         html = self.client.get('/learning-resources/submit?folder=maths').get_data(as_text=True)
         self.assertIn('value="maths" selected', html)
         self.auth(2)
