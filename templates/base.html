@@ -21,6 +21,7 @@
         {% for endpoint, label in navigation %}
           <a href="{{ url_for(endpoint) }}" {% if request.endpoint == endpoint or (endpoint == 'learning_resources' and request.endpoint in ['resource_folder', 'materials.submit']) %}aria-current="page"{% endif %}>{{ label }}</a>
         {% endfor %}
+        <a href="{{ url_for('contact') }}" {% if request.endpoint == 'contact' %}aria-current="page"{% endif %}>Contact</a>
         {% if current_user %}
           <form class="logout-form" action="{{ url_for('logout') }}" method="post"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"><button class="nav-logout" type="submit">Log out</button></form>
         {% else %}
@@ -38,7 +39,7 @@
     <div class="footer-main wrap">
       <div><a class="footer-brand" href="{{ url_for('home') }}"><img class="footer-logo" src="{{ url_for('static', filename='img/kynnected-logo.png') }}" alt="KynnectED" width="2172" height="724"></a><p>Connecting students<br>through education.</p></div>
       <nav class="footer-nav" aria-label="Footer navigation"><a href="{{ url_for('about') }}">About</a><a href="{{ url_for('volunteer') }}">Volunteer</a><a href="{{ url_for('students_centres') }}#centres">Partner With Us</a><a href="{{ url_for('students_centres') }}#safeguarding">Safeguarding</a><a href="{{ url_for('code_of_conduct') }}">Code of Conduct</a><a href="{{ url_for('contact') }}">Contact</a></nav>
-      <div class="footer-contact"><span class="eyebrow">Contact</span><div class="contact-email-row"><a href="mailto:kynnect.org@gmail.com">kynnect.org@gmail.com</a>{{ message_icon() }}</div><div class="social-pending"><a href="https://www.instagram.com/kynnected_org/" target="_blank" rel="noopener noreferrer">Instagram</a></div></div>
+      <div class="footer-contact"><span class="eyebrow">Contact</span><div class="contact-email-row"><a href="mailto:kynnected.org@gmail.com">kynnected.org@gmail.com</a>{{ message_icon() }}</div><div class="social-pending"><a href="https://www.instagram.com/kynnected_org/" target="_blank" rel="noopener noreferrer">Instagram</a></div></div>
     </div>
     <div class="footer-bottom wrap"><span>KynnectED</span><span>Based in Malaysia</span></div>
   </footer>

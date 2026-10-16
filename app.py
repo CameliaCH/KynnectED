@@ -5,7 +5,7 @@ from functools import wraps
 from pathlib import Path
 from zoneinfo import ZoneInfo
 import click
-from account_store import read_accounts, edit_accounts, session_secret, mentor_is_approved, valid_contact_email
+from account_store import read_accounts, edit_accounts, session_secret, mentor_is_approved, valid_contact_email, normalize_contact_number
 from learning import learning, activity_for_user, room_summary, recording_report_summaries, MISSING_RECORDING_REASONS
 from materials import materials, approved_materials, approved_counts, submission_folders
 from recordings import recordings
@@ -16,7 +16,7 @@ ph = argon2.PasswordHasher()
 app = Flask(__name__)
 
 MENTOR_CONDUCT_VERSION = "1.0"
-LEARNER_GUIDELINES_VERSION = "1.0"
+LEARNER_GUIDELINES_VERSION = "1.1"
 MENTOR_CONDUCT_SIGNUP_FILE = Path(app.static_folder) / "documents/KynnectED_Mentor_Code_of_Conduct_Signup.pdf"
 MENTOR_CONDUCT_DOCUMENT_SHA256 = hashlib.sha256(MENTOR_CONDUCT_SIGNUP_FILE.read_bytes()).hexdigest()
 CONDUCT_DOCUMENTS = json.loads((Path(__file__).parent / "content/mentor-conduct.json").read_text())
@@ -153,6 +153,8 @@ def build_users_csv(users, role=None):
 		"id",
 		"username",
 		"email",
+		"contact_method",
+		"contact_value",
 		"firstname",
 		"lastname",
 		"subjects",
@@ -201,6 +203,8 @@ def build_users_csv(users, role=None):
 			"id": user.get("id"),
 			"username": user.get("username"),
 			"email": user.get("email", ""),
+			"contact_method": user.get("contact_method", "email" if user.get("email") else ""),
+			"contact_value": user.get("contact_value", user.get("email", "")),
 			"firstname": name[0] if len(name) > 0 else "",
 			"lastname": name[1] if len(name) > 1 else "",
 			"subjects": " ".join(user.get("subjects", [])),
@@ -298,9 +302,17 @@ def signup_process():
         or request.form.get("learner_guidelines_version") != LEARNER_GUIDELINES_VERSION
     ):
         return {"error": "guidelines", "message": "Please read and agree to the learner guide before signing up."}, 400
-    email = request.form.get('email', '').strip()
-    if request.form['role'] == 'mentor' and not valid_contact_email(email):
-        return {'error': 'email', 'message': 'Enter a valid email address so the team can contact you about your mentor application.'}, 400
+    contact_method = request.form.get('contact_method', '')
+    contact_value = request.form.get('contact_value', '').strip()
+    if contact_method not in {'whatsapp', 'email'}:
+        return {'error': 'contact', 'message': 'Choose how the KynnectED team should contact you: WhatsApp or email.'}, 400
+    if contact_method == 'email':
+        if not valid_contact_email(contact_value):
+            return {'error': 'contact', 'message': 'Enter a valid contact email address.'}, 400
+    else:
+        contact_value = normalize_contact_number(contact_value)
+        if not contact_value:
+            return {'error': 'contact', 'message': 'Enter a WhatsApp number with 7–15 digits. You can include +, spaces, brackets, and dashes.'}, 400
     try:
         availability = json.loads(request.form["days"])
         subjects = json.loads(request.form["selectedSubjects"])
@@ -342,13 +354,16 @@ def signup_process():
             "subjects": subjects, "age": age, "gender": request.form["gender_own"],
             "gender_preferred": gender_preferred, "age_preferred": age_preferred,
             "role": request.form["role"], "partners": [],
+            "contact_method": contact_method, "contact_value": contact_value,
             "availability": dict(zip(
                 ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
                 availability,
             )),
         })
+        if contact_method == "email":
+            users[-1]["email"] = contact_value
         if request.form["role"] == "mentor":
-            users[-1].update(email=email, mentor_approval_status='pending',
+            users[-1].update(mentor_approval_status='pending',
                              mentor_applied_at=datetime.now(timezone.utc).isoformat())
             users[-1]["mentor_code_of_conduct"] = {
                 "version": MENTOR_CONDUCT_VERSION,

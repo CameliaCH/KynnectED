@@ -9,7 +9,7 @@ The public site includes Home (`/`), About (`/about`), For Students & Centres
 (`/learning-resources`), and Contact (`/contact`). Mentor and student calls to
 action use the existing signup flow. Team applications open the public
 KynnectED Google Form. Partnership enquiries use the contact page and email.
-Contact email and message icons open `kynnect.org@gmail.com`; no phone number
+Contact email and message icons open `kynnected.org@gmail.com`; no phone number
 is displayed. Shared contact actions live in `templates/contact_actions.html`.
 
 Visitors are prompted to log in to open resource folders; folder URLs and slide
@@ -97,14 +97,23 @@ the existing `maths` value. Existing accounts are unchanged.
 Learners review a short guide before signup, covering website chat, privacy,
 matching time, lessons, recordings, and getting help. The server requires their
 acknowledgement and saves its version and UTC time in `learner_guidelines`.
-The copy is in `templates/learner_guidelines_dialog.html`; update
+The copy is shared by the signup dialog and learner dashboard in
+`templates/learner_guidelines.html`; update
 `LEARNER_GUIDELINES_VERSION` in `app.py` when changing the guide.
 
-New mentor signups require a contact email and start with
+Both roles must choose WhatsApp or Email and provide contact
+details at signup. `contact_method` and `contact_value` store the preference;
+email choices also populate `email` for compatibility. Numbers accept common
+formatting and 7–15 digits. Coordinators can see these details in **Records &
+CSVs**, and pending mentor applications show the preferred contact. Pairing
+partners cannot see these contact fields. Pairing notifications are sent manually
+by the team; collecting a contact preference does not send a message automatically.
+
+New mentor signups start with
 `mentor_approval_status: pending`. Admins (existing Coordinator accounts) can
 review them in the separate pending mentor table at
 `/coordinator/mentor-approvals` or **Records & CSVs**, contact them using their
-email, and choose **Approve mentor**. Pending applications also have a separate
+preferred contact method, and choose **Approve mentor**. Pending applications also have a separate
 CSV at `/export/pending-mentors.csv`. After approval, the mentor appears in the
 main mentor table, CSV, and pairing choices. Mentor CSVs include contact email
 and application/approval metadata.

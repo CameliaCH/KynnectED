@@ -1,0 +1,13 @@
+{% macro participant_contact(person) -%}
+  {% set method = person.get('contact_method', 'email' if person.get('email') else '') %}
+  {% set value = person.get('contact_value', person.get('email', '')) %}
+  {% if method == 'email' and value %}
+    Email: <a href="mailto:{{ value }}">{{ value }}</a>
+  {% elif method == 'phone' and value %}
+    Phone call: {{ value }}
+  {% elif method == 'whatsapp' and value %}
+    WhatsApp: {{ value }}
+  {% else %}
+    Not provided
+  {% endif %}
+{%- endmacro %}

@@ -23,6 +23,16 @@ def valid_contact_email(value):
                 and re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+", domain))
 
 
+def normalize_contact_number(value):
+    """Accept common phone formatting without requiring an email account."""
+    if len(value) > 40 or not re.fullmatch(r'\+?[0-9 ()-]+', value):
+        return None
+    digits = re.sub(r'[^0-9]', '', value)
+    if not 7 <= len(digits) <= 15:
+        return None
+    return ('+' if value.startswith('+') else '') + digits
+
+
 def read_accounts(path):
     with Path(path).open(encoding="utf-8") as source:
         return json.load(source)

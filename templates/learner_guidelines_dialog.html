@@ -5,14 +5,7 @@
   </div>
   <div class="conduct-dialog-body">
     <p>Welcome! Please read these simple steps before you join.</p>
-    <ul class="learner-guidelines-list">
-      <li><strong>Use our chat only.</strong> Message your mentor through KynnectED. Do not move chats to WhatsApp, social media, or other apps.</li>
-      <li><strong>Keep personal details private.</strong> Do not exchange phone numbers, email addresses, home addresses, social media accounts, or passwords.</li>
-      <li><strong>Allow about one week for a mentor.</strong> Log in and check your dashboard for your pairing. If you are still waiting after a week, contact the KynnectED team.</li>
-      <li><strong>Join your lessons.</strong> Open your pairing to chat and agree on a time. Your mentor schedules the lesson. Use the Zoom link on your dashboard to join on time. If you cannot attend, tell your mentor in our chat.</li>
-      <li><strong>Watch again later.</strong> Lessons are recorded. After your mentor uploads a recording, you can watch it in Finished lessons. Uploads may take up to a week.</li>
-      <li><strong>Be kind and ask for help.</strong> Bring your questions or homework. If anything makes you uncomfortable, tell a trusted adult or <a href="{{ url_for('contact') }}" target="_blank" rel="noopener noreferrer">contact our team</a>.</li>
-    </ul>
+    {% with guidelines_in_dialog=true %}{% include "learner_guidelines.html" %}{% endwith %}
     <label class="conduct-checkbox" for="learner-guidelines-accepted"><input id="learner-guidelines-accepted" type="checkbox"><span>I have read this guide and agree to follow it.</span></label>
   </div>
   <div class="conduct-dialog-footer">

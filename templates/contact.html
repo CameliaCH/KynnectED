@@ -15,9 +15,9 @@
         <p>Technical, Outreach, Resources, or Logistics.</p>
         {{ team_application_link('button') }}
       {% else %}
-        <a class="contact-address" href="mailto:kynnect.org@gmail.com">kynnect.org@gmail.com</a>
+        <a class="contact-address" href="mailto:kynnected.org@gmail.com">kynnected.org@gmail.com</a>
         <p>{% if topic == 'partnership' %}Include your centre’s name and a contact person.{% else %}For programme enquiries.{% endif %}</p>
-        <a class="button" href="mailto:kynnect.org@gmail.com?subject={{ ('KynnectED — Learning centre partnership' if topic == 'partnership' else 'Hello KynnectED') | urlencode }}">Write an email</a>
+        <a class="button" href="mailto:kynnected.org@gmail.com?subject={{ ('KynnectED — Learning centre partnership' if topic == 'partnership' else 'Hello KynnectED') | urlencode }}">Write an email</a>
       {% endif %}
     </article>
   </div>

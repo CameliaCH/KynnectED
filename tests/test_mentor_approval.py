@@ -49,7 +49,7 @@ class MentorApprovalTests(unittest.TestCase):
 
     def signup(self, **changes):
         data = {'username': 'applicant', 'firstname': 'New', 'surname': 'Applicant', 'age': '18',
-                'email': 'applicant@example.com', 'password': 'approval-test-password', 'role': 'mentor',
+                'contact_method': 'email', 'contact_value': 'applicant@example.com', 'password': 'approval-test-password', 'role': 'mentor',
                 'selectedSubjects': '["english"]', 'gender_own': 'female', 'gender_preferred': '["same"]',
                 'age_preferred': '["same-age"]', 'days': json.dumps([['empty']] * 7), '_csrf_token': self.csrf,
                 'mentor_conduct_accepted': 'yes', 'mentor_conduct_version': MENTOR_CONDUCT_VERSION,
@@ -168,18 +168,97 @@ class MentorApprovalTests(unittest.TestCase):
         self.assertEqual(self.approve(12345).status_code, 404)
         self.assertEqual(self.accounts.read_bytes(), before)
 
-    def test_email_validation_and_mentee_signup_without_email(self):
+    def test_email_validation_and_mentee_signup_with_whatsapp(self):
         before = self.accounts.read_bytes()
         for email in ('', 'not-an-email', 'bad@@example.com', 'a@example.com\nBcc:x@y.com',
                       '.bad@example.com', 'a@bad..com', 'a@-example.com', 'a' * 255 + '@example.com'):
             with self.subTest(email=email):
-                response = self.signup(email=email)
+                response = self.signup(contact_value=email)
                 self.assertEqual(response.status_code, 400)
-                self.assertEqual(response.json['error'], 'email')
+                self.assertEqual(response.json['error'], 'contact')
                 self.assertEqual(self.accounts.read_bytes(), before)
-        self.assertEqual(self.signup(email='', role='mentee').json, {'error': 'none'})
+        self.assertEqual(self.signup(role='mentee', contact_method='whatsapp', contact_value='012-345 6789').json, {'error': 'none'})
         self.assertNotIn('mentor_approval_status', self.applicant())
         self.assertNotIn('email', self.applicant())
+        self.assertEqual(self.applicant()['contact_value'], '0123456789')
+
+    def test_each_contact_method_is_saved_and_exported_for_both_roles(self):
+        for role in ('mentor', 'mentee'):
+            for method, value, normalized in (
+                ('email', 'private@example.com', 'private@example.com'),
+                ('whatsapp', '+60 (12) 345-6789', '+60123456789'),
+            ):
+                with self.subTest(role=role, method=method):
+                    username = f'{role}_{method}'
+                    response = self.signup(username=username, role=role, contact_method=method, contact_value=value)
+                    self.assertEqual(response.json, {'error': 'none'})
+                    account = next(user for user in read_accounts(self.accounts) if user['username'] == username)
+                    self.assertEqual(account['contact_method'], method)
+                    self.assertEqual(account['contact_value'], normalized)
+                    self.assertEqual(account.get('email', ''), normalized if method == 'email' else '')
+                    self.auth(99)
+                    row = next(row for row in self.csv_rows('pending-mentors' if role == 'mentor' else 'mentees') if row['username'] == username)
+                    self.assertEqual(row['contact_method'], method)
+                    self.assertEqual(row['contact_value'], normalized)
+                    if role == 'mentor':
+                        html = self.client.get('/coordinator/mentor-approvals').get_data(as_text=True)
+                        self.assertIn(normalized, html)
+                        self.auth(account['id'])
+                        self.assertIn(normalized, self.client.get('/dashboard').get_data(as_text=True))
+
+    def test_missing_or_invalid_contact_is_rejected_for_both_roles(self):
+        before = self.accounts.read_bytes()
+        for role in ('mentor', 'mentee'):
+            for method, value in (('', ''), ('sms', '0123456789'), ('phone', '0123456789'), ('whatsapp', ''),
+                                  ('whatsapp', '123'), ('whatsapp', '1234567890123456'),
+                                  ('whatsapp', 'call me 0123456789'), ('whatsapp', '++60123456789'),
+                                  ('whatsapp', '0123456789\n1234'), ('email', 'not-an-email')):
+                with self.subTest(role=role, method=method, value=value):
+                    response = self.signup(role=role, contact_method=method, contact_value=value)
+                    self.assertEqual(response.status_code, 400)
+                    self.assertEqual(response.json['error'], 'contact')
+                    self.assertEqual(self.accounts.read_bytes(), before)
+
+    def test_pairing_partners_cannot_see_contact_details(self):
+        self.signup(contact_method='whatsapp', contact_value='+60 12 987 6543')
+        mentor = self.applicant()
+        self.auth(99)
+        self.assertEqual(self.approve(mentor['id']).status_code, 302)
+        with edit_accounts(self.accounts) as users:
+            student = next(user for user in users if user['id'] == 2)
+            student.update(contact_method='email', contact_value='private-student@example.com', email='private-student@example.com')
+        response = self.client.post('/coordinator/pairings', data={
+            'mentor_id': mentor['id'], 'mentee_id': 2, 'action': 'link', '_csrf_token': self.csrf})
+        self.assertEqual(response.status_code, 302)
+        with app.test_request_context():
+            from flask import url_for
+            room_url = url_for('learning.room', mentor_id=mentor['id'], mentee_id=2)
+        for viewer in (mentor['id'], 2):
+            self.auth(viewer)
+            for path in ('/dashboard', room_url):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assertNotIn('+60129876543', html)
+                self.assertNotIn('private-student@example.com', html)
+            self.assertEqual(self.client.get('/export/mentees.csv').status_code, 403)
+
+    def test_learner_guide_and_contact_navigation_are_accessible(self):
+        for user_id in (None, 1, 2):
+            self.auth(user_id)
+            html = self.client.get('/contact').get_data(as_text=True)
+            main_nav = html.split('id="main-nav"', 1)[1].split('</nav>', 1)[0]
+            self.assertIn('href="/contact"', main_nav)
+            self.assertIn('aria-current="page">Contact', main_nav)
+        self.auth(2)
+        html = self.client.get('/dashboard').get_data(as_text=True)
+        self.assertIn('id="learner-guide" open', html)
+        self.assertIn('Allow up to one week to be matched.', html)
+        self.assertIn('We will message/email you once your mentor pairing has been confirmed.', html)
+        self.assertIn('href="/contact">contact the KynnectED team', html)
+        self.assertNotIn('http://127.0.0.1', html)
+        self.auth(1)
+        self.assertNotIn('id="learner-guide"', self.client.get('/dashboard').get_data(as_text=True))
 
     def test_existing_mentors_remain_approved_and_team_section_is_saved(self):
         self.auth(1)
