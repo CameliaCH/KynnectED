@@ -89,6 +89,17 @@ recovery. New recordings upload directly to a private Cloudflare R2 bucket. The 
 retention period starts when the video finishes uploading, separately from the
 one-week deadline after the scheduled lesson.
 
+Signup offers Math, English, General homework support, and Other for both roles.
+Other requires a comma-separated list (up to 200 characters). These names are
+normalised and saved in `subjects` for profiles, matching, and exports; Math keeps
+the existing `maths` value. Existing accounts are unchanged.
+
+Learners review a short guide before signup, covering website chat, privacy,
+matching time, lessons, recordings, and getting help. The server requires their
+acknowledgement and saves its version and UTC time in `learner_guidelines`.
+The copy is in `templates/learner_guidelines_dialog.html`; update
+`LEARNER_GUIDELINES_VERSION` in `app.py` when changing the guide.
+
 New mentor signups require a contact email and start with
 `mentor_approval_status: pending`. Admins (existing Coordinator accounts) can
 review them in the separate pending mentor table at

@@ -292,6 +292,15 @@ dialog h2 { font-size: 2rem; }
 .signup-body .signup-form { padding: 32px; border: 1px solid var(--line); border-radius: 12px; background: #fffdfa; }
 .signup-form #question { font-size: 1.1rem; color: var(--ink); }
 .signup-options > span { border-radius: 8px; }
+.signup-options > .subject { flex: 1 1 140px; min-height: 110px; padding: 20px; border: 2px solid var(--line); border-radius: 8px; background: var(--cards-bg); color: var(--ink); font: inherit; font-weight: 600; cursor: pointer; }
+.signup-options > .subject:hover { border-color: var(--ink); }
+.signup-options > .subject[aria-pressed="true"] { background: var(--primary); border-color: var(--ink); box-shadow: 0 0 0 2px var(--ink); }
+.other-subjects-field { flex-basis: 100%; margin-top: 8px; text-align: left; }
+.other-subjects-field label { display: block; font-weight: 600; margin-bottom: 8px; }
+.other-subjects-field input { width: 100%; }
+.learner-guidelines-dialog { width: min(680px, calc(100% - 32px)); }
+.learner-guidelines-list { padding-left: 22px; margin: 0 0 24px; }
+.learner-guidelines-list li { font-size: .95rem; line-height: 1.6; margin-bottom: 14px; }
 .signup-form #part2 { flex-wrap: wrap; }
 .mentor-email-field { flex-basis: 100%; max-width: 520px; margin: 16px auto 0; }
 .mentor-email-field label { display: block; font-size: .9rem; font-weight: 600; }

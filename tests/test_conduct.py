@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from app import app, MENTOR_CONDUCT_VERSION, MENTOR_CONDUCT_DOCUMENT_SHA256
+from app import app, MENTOR_CONDUCT_VERSION, MENTOR_CONDUCT_DOCUMENT_SHA256, LEARNER_GUIDELINES_VERSION
 from account_store import read_accounts
 
 
@@ -35,6 +35,7 @@ class ConductTests(unittest.TestCase):
                 "gender_own": "female", "gender_preferred": '["same"]', "age_preferred": '["same-age"]',
                 "days": json.dumps([["empty"]] * 7), "_csrf_token": self.csrf,
                 "mentor_conduct_accepted": "yes", "mentor_conduct_version": MENTOR_CONDUCT_VERSION,
+                "learner_guidelines_accepted": "yes", "learner_guidelines_version": LEARNER_GUIDELINES_VERSION,
                 "mentor_conduct_document_sha256": MENTOR_CONDUCT_DOCUMENT_SHA256}
         data.update(changes)
         return data
@@ -102,6 +103,55 @@ class ConductTests(unittest.TestCase):
         signup = self.client.get('/signup').get_data(as_text=True)
         self.assertIn('KynnectED_Mentor_Code_of_Conduct_Signup.pdf', signup)
         self.assertIn('By clicking the tick box below, I confirm that:', signup)
+
+    def test_learner_guide_must_be_accepted_at_current_version(self):
+        for changes in ({'learner_guidelines_accepted': None}, {'learner_guidelines_accepted': 'no'},
+                        {'learner_guidelines_version': None}, {'learner_guidelines_version': 'old'}):
+            with self.subTest(changes=changes):
+                data = self.signup_data(role='mentee', **changes)
+                data = {key: value for key, value in data.items() if value is not None}
+                response = self.client.post('/signup-process', data=data)
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json['error'], 'guidelines')
+                self.assertEqual(read_accounts(self.accounts), [])
+
+    def test_learner_acceptance_is_saved_and_not_required_for_mentors(self):
+        start = datetime.now(timezone.utc)
+        response = self.client.post('/signup-process', data=self.signup_data(role='mentee'))
+        self.assertEqual(response.json, {'error': 'none'})
+        learner = read_accounts(self.accounts)[0]
+        self.assertEqual(learner['learner_guidelines']['version'], LEARNER_GUIDELINES_VERSION)
+        self.assertGreaterEqual(datetime.fromisoformat(learner['learner_guidelines']['accepted_at']), start)
+        mentor_data = self.signup_data(username='anothermentor')
+        mentor_data.pop('learner_guidelines_accepted')
+        mentor_data.pop('learner_guidelines_version')
+        self.assertEqual(self.client.post('/signup-process', data=mentor_data).json, {'error': 'none'})
+        self.assertNotIn('learner_guidelines', read_accounts(self.accounts)[-1])
+
+    def test_other_subjects_are_saved_as_names_for_both_roles(self):
+        for role in ('mentor', 'mentee'):
+            response = self.client.post('/signup-process', data=self.signup_data(
+                username=f'custom{role}', role=role,
+                selectedSubjects=json.dumps(['maths', 'english', 'general homework support', 'other']),
+                other_subjects=' Science, Malay, science, Math\n Art '))
+            self.assertEqual(response.json, {'error': 'none'})
+            self.assertEqual(read_accounts(self.accounts)[-1]['subjects'],
+                             ['maths', 'english', 'general homework support', 'science', 'malay', 'art'])
+
+    def test_invalid_subject_selection_does_not_create_account(self):
+        for subjects, other in (([], ''), (['science'], ''), (['other'], ''), (['other'], ' , \n '),
+                                (['other'], 'Other'), (['other'], 'a' * 201)):
+            with self.subTest(subjects=subjects, other=other):
+                response = self.client.post('/signup-process', data=self.signup_data(
+                    selectedSubjects=json.dumps(subjects), other_subjects=other))
+                self.assertEqual(response.status_code, 400)
+                self.assertEqual(response.json['error'], 'subjects')
+                self.assertEqual(read_accounts(self.accounts), [])
+
+    def test_unselected_other_subjects_are_ignored(self):
+        response = self.client.post('/signup-process', data=self.signup_data(other_subjects='Science'))
+        self.assertEqual(response.json, {'error': 'none'})
+        self.assertEqual(read_accounts(self.accounts)[0]['subjects'], ['english'])
 
     def test_mentor_dashboard_has_dedicated_conduct_link(self):
         users = [{'id': 1, 'username': 'mentor', 'name': ['Mentor', 'Test'], 'role': 'mentor', 'subjects': [], 'partners': []},

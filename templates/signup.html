@@ -18,7 +18,8 @@
         <h3 id="pw-dont-match">Your passwords do not match.</h3>
         <div id="part1" class="signup-fields">
             <div class="input-container">
-                <input type="text" placeholder="Username" aria-label="Username" name="username" id="username" autocomplete="off">
+                <input type="text" placeholder="Username" aria-label="Username" name="username" id="username" autocomplete="off" aria-describedby="username-error">
+                <p id="username-error" class="form-error" role="alert" hidden></p>
             </div>
 
             <div class="input-container">
@@ -57,31 +58,17 @@
             </div>
         </div>
 
-        <span class="signup-options" id="part3" style="display: none;">
-            <span class="subject" id="maths">
-                <img src="/static/img/maths.png" width="100%" alt="Maths">
-            </span>
-
-            <span class="subject" id="english">
-                <img src="/static/img/english.png" width="100%" alt="English">
-            </span>
-
-            <span class="subject" id="malay">
-                <img src="/static/img/malay.png" width="100%" alt="Malay">
-            </span>
-
-            <span class="subject" id="mandarin">
-                <img src="/static/img/mandarin.png" width="100%" alt="Mandarin">
-            </span>
-
-            <span class="subject" id="science">
-                <img src="/static/img/science.png" width="100%" alt="Science">
-            </span>
-
-            <span class="subject" id="art">
-                <img src="/static/img/art.png" width="100%" alt="Art">
-            </span>
-        </span>
+        <div class="signup-options" id="part3" style="display: none;">
+            <button type="button" class="subject" id="maths" data-subject="maths" aria-pressed="false">Math</button>
+            <button type="button" class="subject" id="english" data-subject="english" aria-pressed="false">English</button>
+            <button type="button" class="subject" id="homework-support" data-subject="general homework support" aria-pressed="false">General homework support</button>
+            <button type="button" class="subject" id="other-subject" data-subject="other" aria-pressed="false" aria-controls="other-subjects-field" aria-expanded="false">Other</button>
+            <div id="other-subjects-field" class="other-subjects-field" hidden>
+                <label for="other-subjects">Which other subjects?</label>
+                <input type="text" id="other-subjects" name="other_subjects" maxlength="200" aria-describedby="other-subjects-help" disabled>
+                <p id="other-subjects-help" class="availability-help">List your subjects, separated by commas. For example: Science, Malay, Art.</p>
+            </div>
+        </div>
 
         <div id="part4" class="availability-picker" style="display: none;">
             <div class="availability-days" role="group" aria-label="Choose a day"></div>
@@ -165,6 +152,7 @@
   </section>
 
     {% include "mentor_conduct_dialog.html" %}
+    {% include "learner_guidelines_dialog.html" %}
 
     <script>
         const availabilityPreview = {{ availability_preview | tojson }};
@@ -174,25 +162,47 @@
         let gender_preferred = [];
         let age_preferred = [];
 
-        const mentorConductDialog = document.getElementById("mentor-conduct-dialog");
-        const mentorConductCheckbox = document.getElementById("mentor-conduct-accepted");
-        const mentorConductConfirm = document.getElementById("conduct-confirm");
         let signupInFlight = false;
-
-        const updateConductConfirmation = () => {
-            mentorConductConfirm.disabled = signupInFlight || !mentorConductCheckbox.checked;
-        };
-        mentorConductCheckbox.addEventListener("change", updateConductConfirmation);
-        document.getElementById("conduct-close").addEventListener("click", () => mentorConductDialog.close());
-        document.getElementById("conduct-back").addEventListener("click", () => mentorConductDialog.close());
-        mentorConductDialog.addEventListener("cancel", event => {
-            if (signupInFlight) event.preventDefault();
+        const usernameInput = document.getElementById("username");
+        const usernameError = document.getElementById("username-error");
+        usernameInput.addEventListener("input", () => {
+            usernameError.hidden = true;
+            usernameInput.removeAttribute("aria-invalid");
         });
+        const signupGuides = {
+            mentor: { dialog: "mentor-conduct-dialog", checkbox: "mentor-conduct-accepted", prefix: "conduct" },
+            mentee: { dialog: "learner-guidelines-dialog", checkbox: "learner-guidelines-accepted", prefix: "guidelines" },
+        };
+        for (const [guideRole, guide] of Object.entries(signupGuides)) {
+            guide.dialog = document.getElementById(guide.dialog);
+            guide.checkbox = document.getElementById(guide.checkbox);
+            guide.confirm = document.getElementById(`${guide.prefix}-confirm`);
+            guide.error = document.getElementById(`${guide.prefix}-signup-error`);
+            guide.update = () => {
+                guide.confirm.disabled = signupInFlight || !guide.checkbox.checked;
+                guide.checkbox.disabled = signupInFlight;
+                for (const action of ["close", "back"]) {
+                    document.getElementById(`${guide.prefix}-${action}`).disabled = signupInFlight;
+                }
+            };
+            guide.checkbox.addEventListener("change", guide.update);
+            for (const action of ["close", "back"]) {
+                document.getElementById(`${guide.prefix}-${action}`).addEventListener("click", () => guide.dialog.close());
+            }
+            guide.dialog.addEventListener("cancel", event => {
+                if (signupInFlight) event.preventDefault();
+            });
+            guide.confirm.addEventListener("click", () => {
+                if (role === guideRole && guide.checkbox.checked) submitSignup();
+            });
+        }
 
         const submitSignup = async () => {
             if (signupInFlight) return;
-            if (role === "mentor" && !mentorConductCheckbox.checked) {
-                mentorConductDialog.showModal();
+            const guide = signupGuides[role];
+            if (!guide) return;
+            if (!guide.checkbox.checked) {
+                guide.dialog.showModal();
                 return;
             }
             const data = new URLSearchParams({
@@ -204,22 +214,23 @@
                 age: document.getElementById("age").value,
                 password: document.getElementById("password").value,
                 role: role, selectedSubjects: JSON.stringify(selectedSubjects),
+                other_subjects: selectedSubjects.includes("other") ? document.getElementById("other-subjects").value.trim() : "",
                 gender_own: gender_own, gender_preferred: JSON.stringify(gender_preferred),
                 age_preferred: JSON.stringify(age_preferred), days: JSON.stringify(days),
             });
             if (role === "mentor") {
                 data.set("mentor_conduct_accepted", "yes");
-                data.set("mentor_conduct_version", mentorConductDialog.dataset.version);
-                data.set("mentor_conduct_document_sha256", mentorConductDialog.dataset.documentSha256);
+                data.set("mentor_conduct_version", guide.dialog.dataset.version);
+                data.set("mentor_conduct_document_sha256", guide.dialog.dataset.documentSha256);
+            } else {
+                data.set("learner_guidelines_accepted", "yes");
+                data.set("learner_guidelines_version", guide.dialog.dataset.version);
             }
             signupInFlight = true;
             document.getElementById("next").disabled = true;
             document.getElementById("back").disabled = true;
-            document.getElementById("conduct-close").disabled = true;
-            document.getElementById("conduct-back").disabled = true;
-            mentorConductCheckbox.disabled = true;
-            updateConductConfirmation();
-            document.getElementById("conduct-signup-error").hidden = true;
+            guide.update();
+            guide.error.hidden = true;
             document.getElementById("error").classList.remove("show");
             try {
                 const response = await fetch('/signup-process', { method: 'POST', body: data });
@@ -228,18 +239,28 @@
                 if (response.ok && result.error === "none") {
                     window.location.assign("/login");
                 } else if (result.error === "1" || result.error === "2") {
-                    window.location.assign(`/error${result.error}`);
+                    guide.dialog.close();
+                    for (let step = 1; step <= 7; step++) {
+                        document.getElementById(`part${step}`).style.display = step === 1 ? "flex" : "none";
+                    }
+                    document.getElementById("question").textContent = "Choose a different username to finish signing up. Your other details are saved in this form.";
+                    document.getElementById("next").textContent = "Next";
+                    usernameError.textContent = result.error === "2"
+                        ? "This username is already taken. Please choose another username."
+                        : "Use only English letters, numbers, and underscores (_) for your username.";
+                    usernameError.hidden = false;
+                    usernameInput.setAttribute("aria-invalid", "true");
+                    usernameInput.focus();
                 } else {
-                    if (result.error === "conduct") mentorConductCheckbox.checked = false;
+                    if (result.error === "conduct" || result.error === "guidelines") guide.checkbox.checked = false;
                     throw new Error(result.message || "We couldn’t complete your signup. Reload the page and try again.");
                 }
             } catch (error) {
                 const message = error instanceof TypeError
                     ? "Couldn’t connect. Check your connection and try again." : error.message;
-                if (mentorConductDialog.open) {
-                    const notice = document.getElementById("conduct-signup-error");
-                    notice.textContent = message;
-                    notice.hidden = false;
+                if (guide.dialog.open) {
+                    guide.error.textContent = message;
+                    guide.error.hidden = false;
                 } else {
                     document.getElementById("error").textContent = message;
                     document.getElementById("error").classList.add("show");
@@ -247,16 +268,10 @@
             } finally {
                 signupInFlight = false;
                 document.getElementById("next").disabled = false;
-                document.getElementById("back").disabled = false;
-                document.getElementById("conduct-close").disabled = false;
-                document.getElementById("conduct-back").disabled = false;
-                mentorConductCheckbox.disabled = false;
-                updateConductConfirmation();
+                document.getElementById("back").disabled = document.getElementById("part1").style.display !== "none";
+                guide.update();
             }
         };
-        mentorConductConfirm.addEventListener("click", () => {
-            if (role === "mentor" && mentorConductCheckbox.checked) submitSignup();
-        });
         document.querySelector(".signup-form").addEventListener("submit", event => {
             event.preventDefault();
             nextsection();
@@ -265,6 +280,17 @@
         const nextsection = () => {
             if (document.getElementById("next").disabled) return;
             if (document.getElementById("part1").style.display != "none") {
+                if (!usernameError.hidden) {
+                    usernameInput.focus();
+                    return;
+                }
+                if (!/^[a-z0-9_]+$/i.test(usernameInput.value)) {
+                    usernameError.textContent = "Enter a username using only English letters, numbers, and underscores (_).";
+                    usernameError.hidden = false;
+                    usernameInput.setAttribute("aria-invalid", "true");
+                    usernameInput.focus();
+                    return;
+                }
                 if (document.getElementById("password").value != document.getElementById("confirm-password").value) {
                     document.getElementById("pw-dont-match").classList.add("show");
                     document.getElementById("error").classList.remove("show");
@@ -325,15 +351,25 @@
             }
             if (document.getElementById("part3").style.display != "none") {
                 selectedSubjects = [];
-                for (i of document.getElementsByClassName("subject")) {
-                    if (i.style.backgroundColor == 'rgb(136, 136, 136)') {
-                        selectedSubjects.push(i.id);
+                for (const subject of document.getElementsByClassName("subject")) {
+                    if (subject.getAttribute("aria-pressed") === "true") {
+                        selectedSubjects.push(subject.dataset.subject);
                     }
                 }
                 if (selectedSubjects.length == 0) {
                     document.getElementById("error").innerHTML = "Please select at least one subject first before pressing 'Next'.";
                     document.getElementById("error").classList.add("show");
                     return;
+                }
+                if (selectedSubjects.includes("other")) {
+                    const field = document.getElementById("other-subjects");
+                    const subjects = field.value.split(/[,\n]/).map(value => value.trim()).filter(Boolean);
+                    if (!subjects.length || subjects.some(value => value.toLowerCase() === "other") || field.value.length > 200) {
+                        document.getElementById("error").textContent = "List your other subjects (up to 200 characters), separated by commas.";
+                        document.getElementById("error").classList.add("show");
+                        field.focus();
+                        return;
+                    }
                 }
                 document.getElementById("overlay").classList.add("visible");
                 setTimeout(() => {
@@ -402,7 +438,7 @@
                     document.getElementById("part7").style.display = "flex";
                     document.getElementById("question").innerHTML = "What age range would you prefer to be matched with? (You can choose more than one option)"
                     document.getElementById("overlay").classList.remove("visible");
-                    document.getElementById("next").textContent = availabilityPreview ? "Finish preview" : role === "mentor" ? "Review Code of Conduct" : "Sign up";
+                    document.getElementById("next").textContent = availabilityPreview ? "Finish preview" : role === "mentor" ? "Review Code of Conduct" : "Read learner guide";
                     document.getElementById("error").classList.remove("show");
                 }, 500);
             }
@@ -416,7 +452,7 @@
                 if (age_preferred.length == 0) {
                     document.getElementById("error").textContent = availabilityPreview
                         ? "Please select your age preference before finishing the preview."
-                        : "Please select your age preference first before pressing 'Sign up'.";
+                        : "Please select your age preference before continuing.";
                     document.getElementById("error").classList.add("show");
                     return;
                 }
@@ -426,13 +462,10 @@
                     document.getElementById("next").disabled = true;
                     return;
                 }
-                if (role === "mentor") {
-                    document.getElementById("conduct-signup-error").hidden = true;
-                    updateConductConfirmation();
-                    mentorConductDialog.showModal();
-                    return;
-                }
-                submitSignup();
+                const guide = signupGuides[role];
+                guide.error.hidden = true;
+                guide.update();
+                guide.dialog.showModal();
             }
         }
 
@@ -522,8 +555,8 @@
             document.getElementById("mentor-email-field").hidden = false;
             document.getElementById("email").disabled = false;
             document.getElementById("email").required = !availabilityPreview;
-            mentorConductCheckbox.checked = false;
-            updateConductConfirmation();
+            signupGuides.mentor.checkbox.checked = false;
+            signupGuides.mentor.update();
         });
 
         document.getElementById("mentee").addEventListener("click", () => {
@@ -533,8 +566,8 @@
             document.getElementById("mentor-email-field").hidden = true;
             document.getElementById("email").disabled = true;
             document.getElementById("email").required = false;
-            mentorConductCheckbox.checked = false;
-            updateConductConfirmation();
+            signupGuides.mentee.checkbox.checked = false;
+            signupGuides.mentee.update();
         });
 
         document.getElementById("male-own").addEventListener("click", () => {
@@ -608,14 +641,17 @@
             }
         });
 
-        for (i of document.getElementsByClassName("subject")) {
-            i.addEventListener("click", (e) => {
-                if (selectedSubjects.includes(e.currentTarget.id)) {
-                    e.currentTarget.style.backgroundColor = "#333";
-                    selectedSubjects.pop(selectedSubjects.indexOf(e.currentTarget.id));
-                } else {
-                    e.currentTarget.style.backgroundColor = "#888";
-                    selectedSubjects.push(e.currentTarget.id);
+        for (const subject of document.getElementsByClassName("subject")) {
+            subject.addEventListener("click", () => {
+                const selected = subject.getAttribute("aria-pressed") !== "true";
+                subject.setAttribute("aria-pressed", String(selected));
+                if (subject.dataset.subject === "other") {
+                    document.getElementById("other-subjects-field").hidden = !selected;
+                    const field = document.getElementById("other-subjects");
+                    field.disabled = !selected;
+                    field.required = selected;
+                    subject.setAttribute("aria-expanded", String(selected));
+                    if (selected) field.focus();
                 }
             });
         }

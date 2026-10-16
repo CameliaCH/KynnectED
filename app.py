@@ -16,6 +16,7 @@ ph = argon2.PasswordHasher()
 app = Flask(__name__)
 
 MENTOR_CONDUCT_VERSION = "1.0"
+LEARNER_GUIDELINES_VERSION = "1.0"
 MENTOR_CONDUCT_SIGNUP_FILE = Path(app.static_folder) / "documents/KynnectED_Mentor_Code_of_Conduct_Signup.pdf"
 MENTOR_CONDUCT_DOCUMENT_SHA256 = hashlib.sha256(MENTOR_CONDUCT_SIGNUP_FILE.read_bytes()).hexdigest()
 CONDUCT_DOCUMENTS = json.loads((Path(__file__).parent / "content/mentor-conduct.json").read_text())
@@ -141,6 +142,7 @@ def set_coordinator(username, revoke):
 @app.route('/signup')
 def signup():
     return render_template("signup.html", conduct_document=CONDUCT_DOCUMENTS["signup"],
+                           learner_guidelines_version=LEARNER_GUIDELINES_VERSION,
                            mentor_conduct_version=MENTOR_CONDUCT_VERSION,
                            mentor_conduct_document_sha256=MENTOR_CONDUCT_DOCUMENT_SHA256)
 
@@ -291,6 +293,11 @@ def signup_process():
         or request.form.get("mentor_conduct_document_sha256") != MENTOR_CONDUCT_DOCUMENT_SHA256
     ):
         return {"error": "conduct", "message": "Please read and accept the current Mentor Code of Conduct before signing up."}, 400
+    if request.form["role"] == "mentee" and (
+        request.form.get("learner_guidelines_accepted") != "yes"
+        or request.form.get("learner_guidelines_version") != LEARNER_GUIDELINES_VERSION
+    ):
+        return {"error": "guidelines", "message": "Please read and agree to the learner guide before signing up."}, 400
     email = request.form.get('email', '').strip()
     if request.form['role'] == 'mentor' and not valid_contact_email(email):
         return {'error': 'email', 'message': 'Enter a valid email address so the team can contact you about your mentor application.'}, 400
@@ -311,6 +318,18 @@ def signup_process():
             raise ValueError()
     except (ValueError, KeyError, TypeError):
         abort(400, description="Please check your signup details and try again.")
+
+    if not subjects or any(subject not in {"maths", "english", "general homework support", "other"} for subject in subjects):
+        return {"error": "subjects", "message": "Choose at least one subject from the list."}, 400
+    if "other" in subjects:
+        other_subjects = request.form.get("other_subjects", "").strip()
+        custom_subjects = [" ".join(subject.split()).lower()
+                           for subject in other_subjects.replace("\n", ",").split(",") if subject.strip()]
+        if not custom_subjects or len(other_subjects) > 200 or "other" in custom_subjects:
+            return {"error": "subjects", "message": "List your other subjects (up to 200 characters), separated by commas."}, 400
+        # Store actual subject names so profiles, exports, and matching can use them.
+        subjects = [subject for subject in subjects if subject != "other"] + custom_subjects
+    subjects = list(dict.fromkeys("maths" if subject == "math" else subject for subject in subjects))
 
     password_hash = ph.hash(request.form["password"])
     with edit_accounts(app.config["USERS_FILE"]) as users:
@@ -334,6 +353,11 @@ def signup_process():
             users[-1]["mentor_code_of_conduct"] = {
                 "version": MENTOR_CONDUCT_VERSION,
                 "document_sha256": MENTOR_CONDUCT_DOCUMENT_SHA256,
+                "accepted_at": datetime.now(timezone.utc).isoformat(),
+            }
+        else:
+            users[-1]["learner_guidelines"] = {
+                "version": LEARNER_GUIDELINES_VERSION,
                 "accepted_at": datetime.now(timezone.utc).isoformat(),
             }
     return {"error": "none"}

@@ -6,7 +6,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from app import app, ph
+from app import app, ph, LEARNER_GUIDELINES_VERSION
 from account_store import edit_accounts, read_accounts
 
 
@@ -189,6 +189,7 @@ class AccountTests(unittest.TestCase):
         self.post_pair(1, 3)
         data = {"username": "newmember", "firstname": "New", "surname": "Member", "age": "18",
                 "password": "signup-test", "role": "mentee", "selectedSubjects": '["maths"]',
+                "learner_guidelines_accepted": "yes", "learner_guidelines_version": LEARNER_GUIDELINES_VERSION,
                 "gender_own": "male", "gender_preferred": '["same"]', "age_preferred": '["same-age"]',
                 "days": json.dumps([["empty"]] * 7), "_csrf_token": "test-csrf", "is_coordinator": "true"}
         self.assertEqual(self.client.post("/signup-process", data=data).json, {"error": "none"})

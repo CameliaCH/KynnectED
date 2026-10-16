@@ -7,7 +7,7 @@ from pathlib import Path
 import tempfile
 import unittest
 
-from app import app, ph, MENTOR_CONDUCT_VERSION, MENTOR_CONDUCT_DOCUMENT_SHA256
+from app import app, ph, MENTOR_CONDUCT_VERSION, MENTOR_CONDUCT_DOCUMENT_SHA256, LEARNER_GUIDELINES_VERSION
 from account_store import edit_accounts, read_accounts
 
 
@@ -53,6 +53,7 @@ class MentorApprovalTests(unittest.TestCase):
                 'selectedSubjects': '["english"]', 'gender_own': 'female', 'gender_preferred': '["same"]',
                 'age_preferred': '["same-age"]', 'days': json.dumps([['empty']] * 7), '_csrf_token': self.csrf,
                 'mentor_conduct_accepted': 'yes', 'mentor_conduct_version': MENTOR_CONDUCT_VERSION,
+                'learner_guidelines_accepted': 'yes', 'learner_guidelines_version': LEARNER_GUIDELINES_VERSION,
                 'mentor_conduct_document_sha256': MENTOR_CONDUCT_DOCUMENT_SHA256}
         data.update(changes)
         return self.client.post('/signup-process', data=data)
