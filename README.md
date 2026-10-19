@@ -2,6 +2,14 @@
 
 Install dependencies and configure recording storage using the commands below, then visit http://localhost:5001.
 
+Supabase migration, backup tooling, and account-email requirements
+are documented in [docs/supabase-migration.md](docs/supabase-migration.md).
+Set `KYNNECTED_DATA_BACKEND=supabase` after importing the database to use Supabase
+Postgres for accounts and application records. `local` uses JSON and SQLite.
+Authentication currently remains in Flask, with password hashes in a private
+Postgres schema when using Supabase. Supabase Auth and Storage are separate,
+remaining stages; recordings continue to use R2 until the storage migration.
+
 ## Public website and resource library
 
 The public site includes Home (`/`), About (`/about`), For Students & Centres
@@ -101,13 +109,16 @@ The copy is shared by the signup dialog and learner dashboard in
 `templates/learner_guidelines.html`; update
 `LEARNER_GUIDELINES_VERSION` in `app.py` when changing the guide.
 
-Both roles must choose WhatsApp or Email and provide contact
-details at signup. `contact_method` and `contact_value` store the preference;
-email choices also populate `email` for compatibility. Numbers accept common
-formatting and 7–15 digits. Coordinators can see these details in **Records &
-CSVs**, and pending mentor applications show the preferred contact. Pairing
-partners cannot see these contact fields. Pairing notifications are sent manually
-by the team; collecting a contact preference does not send a message automatically.
+Both roles must provide an email address at signup; WhatsApp is optional.
+`email` is used for password recovery and account updates, and `whatsapp` stores
+the optional number. New records also retain `contact_method: email` and
+`contact_value` for compatibility. Numbers accept common formatting and 7–15 digits.
+Coordinators can see both fields in **Records & CSVs** and pending applications;
+pairing partners cannot see them. Pairing notifications are still sent manually.
+Existing accounts without a valid email must add one at their next login, using
+`/account/email` and confirming their current password. Existing signed-in sessions
+show an add-email reminder. Their saved WhatsApp number is prefilled and preserved
+unless they edit it. Previously saved email contacts continue to work.
 
 New mentor signups start with
 `mentor_approval_status: pending`. Admins (existing Coordinator accounts) can
@@ -117,6 +128,12 @@ preferred contact method, and choose **Approve mentor**. Pending applications al
 CSV at `/export/pending-mentors.csv`. After approval, the mentor appears in the
 main mentor table, CSV, and pairing choices. Mentor CSVs include contact email
 and application/approval metadata.
+
+Mentor signup also requires a **College / high school name** (up to 150 characters),
+saved as `school`. Coordinators see it in pending applications, mentor records,
+and pending/approved mentor CSVs. Learners do not see or complete this field.
+Existing mentors can continue using their accounts without supplying it; missing
+school names display as “Not provided” in pending applications and blank in CSVs.
 
 Approval uses the atomic account store and records the approving admin and UTC
 approval time. Signup cannot set its own approval state or admin permissions.
@@ -151,6 +168,111 @@ created in the git-ignored `instance/session-secret` file. Keep that key stable
 across restarts. Sessions expire after eight hours. Set `KYNNECTED_HTTPS=1` when
 serving over HTTPS to require secure session cookies. `KYNNECTED_USERS_FILE`
 can point to a separate account store for isolated testing.
+
+## Password recovery
+
+**Forgot your password?** on the login page currently opens a **Contact the
+KynnectED team** page. Automatic reset emails are disabled by default while the
+Google account issue is resolved, even if SMTP credentials are configured. Direct
+POST requests cannot send reset emails in this mode. Team-assisted recovery links
+continue to work.
+
+To restore automatic email recovery later, set `KYNNECTED_EMAIL_RESETS_ENABLED=1`
+along with valid SMTP settings, restart the app, and verify delivery. When enabled,
+users enter their username; links go only to the address already saved on that account.
+Older accounts without an email address can contact the team for assisted recovery
+if they have already forgotten their password; after logging in, they must add an email.
+The response does not reveal whether an account exists. Requests are limited to
+five per username and twenty per IP address each hour, across application workers.
+Counters live alongside the account store in `users.reset-limits.sqlite3` (derived
+from `KYNNECTED_USERS_FILE`); preserve write access to that directory.
+
+For future email reactivation, configure these environment variables and restart:
+
+```sh
+export KYNNECTED_PUBLIC_URL='https://your-site.example'
+export KYNNECTED_EMAIL_RESETS_ENABLED='1'
+export KYNNECTED_SMTP_HOST='smtp.your-provider.example'
+export KYNNECTED_SMTP_PORT='587'
+export KYNNECTED_SMTP_USERNAME='your-smtp-username'
+export KYNNECTED_SMTP_PASSWORD='your-smtp-password'
+export KYNNECTED_SMTP_FROM='your-sender@example.com'
+```
+
+Use your provider's SMTP credentials and an authorised sender. Delivery uses
+STARTTLS by default; for implicit TLS, set `KYNNECTED_SMTP_SSL=1` and port `465`.
+Local testing may use `KYNNECTED_PUBLIC_URL=http://localhost:5001`; deployed links
+require HTTPS. The configured origin is used instead of the incoming Host header.
+Without mail configuration, the recovery page offers team assistance. No emails
+are sent by the automated tests. Verify delivery with a test account after setup.
+
+### Sending from the KynnectED Gmail account
+
+For `kynnected.org@gmail.com`, use the following values in the local, git-ignored
+`.env` file. Keep existing storage settings in that file:
+
+```sh
+KYNNECTED_PUBLIC_URL='http://localhost:5001'
+KYNNECTED_EMAIL_RESETS_ENABLED='0'
+KYNNECTED_SMTP_HOST='smtp.gmail.com'
+KYNNECTED_SMTP_PORT='587'
+KYNNECTED_SMTP_USERNAME='kynnected.org@gmail.com'
+KYNNECTED_SMTP_PASSWORD=''
+KYNNECTED_SMTP_FROM='kynnected.org@gmail.com'
+KYNNECTED_SMTP_SSL='0'
+```
+
+Sign into that Google account, enable **2-Step Verification**, then create an
+[app password](https://myaccount.google.com/apppasswords) named **KynnectED**.
+Paste that app password without spaces into `KYNNECTED_SMTP_PASSWORD` locally;
+do not use the normal Google account password or share the app password in chat.
+See [Google's app password instructions](https://support.google.com/accounts/answer/185833).
+The reset form stays unavailable while the SMTP password is empty or
+`KYNNECTED_EMAIL_RESETS_ENABLED=0`. Leave email resets disabled until the Google
+account issue is resolved.
+
+Stop the running app and restart from the project directory, loading `.env` first:
+
+```sh
+source .venv/bin/activate
+set -a
+source .env
+set +a
+python3 app.py
+```
+
+The app loads the project's `.env` automatically; explicitly exported environment
+variables take precedence. While testing locally, open emailed
+links on the same computer running the app. Before enabling recovery for other
+users, set `KYNNECTED_PUBLIC_URL` to the deployed site's HTTPS origin and configure
+the same mail variables on the hosting service. Request a link for a test account
+with an accessible saved email address to verify actual delivery.
+
+### Recovery link behaviour
+
+Links expire after 30 minutes, are stored only as SHA-256 hashes, and can be used
+once. A new password must contain 12–128 characters and match its confirmation.
+Successful resets preserve profiles, approval status and pairings, invalidate all
+existing login sessions, and ask the user to log in again. Existing passwords and
+sessions continue to work until a reset succeeds. Repeated email requests do not
+replace an unexpired link. Failed delivery removes its token so the user can retry.
+Email runs in a small bounded background pool; a process restart can interrupt
+pending delivery. The user can retry after expiry or contact the team.
+
+For WhatsApp-only accounts or lost email access, independently verify the owner
+using their previously saved contact details before creating a recovery link:
+
+```sh
+python3 -m flask --app app create-password-reset USERNAME
+```
+
+This server-only command requires `KYNNECTED_PUBLIC_URL`, prints a private link,
+and replaces any previous reset link. Share it privately with the verified owner;
+the command does not send a message. Treat links as credentials: do not paste them
+into shared logs, and configure server/proxy access logs to omit or redact
+`/reset-password/` URLs. Recovery responses prevent caching and referrer sharing.
+The token and session controls follow the
+[OWASP password recovery guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html).
 
 ## Pairing rooms and lessons
 
@@ -226,7 +348,7 @@ set +a
 python3 app.py
 ```
 
-The app reads environment variables; it does not automatically read `.env`.
+The app loads `.env` automatically; explicitly exported environment variables take precedence.
 Restart the app after changes. `.env`, `.venv` and `instance/` are git-ignored.
 Never put actual credentials in source, templates or commits.
 

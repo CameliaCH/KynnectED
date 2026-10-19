@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Add your email · KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="auth-layout wrap">
+  <section class="auth-card" aria-labelledby="email-heading">
+    <h1 id="email-heading">Add your email address</h1>
+    <p>Email is now required for every account so you can receive password reset links and account updates. Your email and WhatsApp number are only visible to you and the KynnectED team.</p>
+    {% if error %}<p role="alert">{{ error }}</p>{% endif %}
+    <form class="account-form login-form" action="{{ url_for('complete_email') }}" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label for="email">Email address (required)<input id="email" name="email" type="email" autocomplete="email" maxlength="254" value="{{ email }}" required></label>
+      <label for="whatsapp">WhatsApp number (optional)<input id="whatsapp" name="whatsapp" type="tel" autocomplete="tel" maxlength="40" value="{{ whatsapp }}"></label>
+      <label for="password">Current password<input id="password" name="password" type="password" autocomplete="current-password" required></label>
+      <button class="button" type="submit">Save and continue</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

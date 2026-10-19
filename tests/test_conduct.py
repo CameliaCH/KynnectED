@@ -30,7 +30,8 @@ class ConductTests(unittest.TestCase):
 
     def signup_data(self, **changes):
         data = {"username": "newmentor", "firstname": "New", "surname": "Mentor", "age": "18",
-                "contact_method": "email", "contact_value": "newmentor@example.com",
+                "school": "Example High School",
+                "email": "newmentor@example.com",
                 "password": "signup-test", "role": "mentor", "selectedSubjects": '["english"]',
                 "gender_own": "female", "gender_preferred": '["same"]', "age_preferred": '["same-age"]',
                 "days": json.dumps([["empty"]] * 7), "_csrf_token": self.csrf,

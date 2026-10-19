@@ -4,6 +4,6 @@
 {% block body_class %}interior-page{% endblock %}
 {% block content %}
 <main class="wrap folder-page">
-  <section class="workspace-panel mentor-pending-panel"><span class="workspace-label">Mentor application</span><h1>Awaiting approval</h1><p>Your application is awaiting admin review. Once approved, you can be paired with a student.</p><p>Preferred contact — {{ participant_contact(current_user) }}</p><div class="button-row"><a class="button" href="{{ url_for('code_of_conduct') }}">Code of Conduct</a><a class="button button-outline" href="{{ url_for('learning_resources') }}">Resources</a></div></section>
+  <section class="workspace-panel mentor-pending-panel"><span class="workspace-label">Mentor application</span><h1>Awaiting approval</h1><p>Your application is awaiting admin review. Once approved, you can be paired with a student.</p><p>Contact details — {{ participant_contact(current_user) }}</p><div class="button-row"><a class="button" href="{{ url_for('code_of_conduct') }}">Code of Conduct</a><a class="button button-outline" href="{{ url_for('learning_resources') }}">Resources</a></div></section>
 </main>
 {% endblock %}

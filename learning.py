@@ -136,6 +136,10 @@ LESSON_SELECT = """SELECT lessons.*, reports.reason AS missing_recording_reason,
 
 def get_db():
     if "learning_db" not in g:
+        from database import uses_postgres, PostgresDatabase
+        if uses_postgres():
+            g.learning_db = PostgresDatabase()
+            return g.learning_db
         path = Path(current_app.config["LEARNING_DATABASE"])
         path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(path, timeout=20)
@@ -541,9 +545,9 @@ def messages(mentor_id, mentee_id):
         if not body or len(body) > 2000:
             return jsonify(error="Write a message between 1 and 2,000 characters."), 400
         with get_db() as db:
-            cursor = db.execute("INSERT INTO messages(mentor_id, mentee_id, sender_id, body, created_at) VALUES (?, ?, ?, ?, ?)",
+            cursor = db.execute("INSERT INTO messages(mentor_id, mentee_id, sender_id, body, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id",
                                 (mentor_id, mentee_id, g.current_user["id"], body, int(time.time())))
-            id = cursor.lastrowid
+            id = cursor.fetchone()['id']
         return jsonify(messages=message_rows(mentor_id, mentee_id, after=id - 1))
     try:
         after = int(request.args["after"]) if "after" in request.args else None

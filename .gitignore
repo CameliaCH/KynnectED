@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 instance/
 users.json.lock
+*.reset-limits.sqlite3
 .env
 .env.*
 !.env.example

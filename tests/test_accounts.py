@@ -31,7 +31,7 @@ class AccountTests(unittest.TestCase):
         self.client = app.test_client()
 
     def account(self, id, role):
-        return {"id": id, "username": f"person{id}", "password": self.password_hash,
+        return {"id": id, "username": f"person{id}", "password": self.password_hash, "email": f"person{id}@example.com",
                 "name": [f"Person{id}", "Example"], "role": role, "subjects": ["maths"],
                 "age": 18, "gender": "male", "gender_preferred": ["same"],
                 "age_preferred": ["same-age"], "partners": [], "availability": {"monday": ["09:00"]}}
@@ -189,7 +189,7 @@ class AccountTests(unittest.TestCase):
         self.post_pair(1, 3)
         data = {"username": "newmember", "firstname": "New", "surname": "Member", "age": "18",
                 "password": "signup-test", "role": "mentee", "selectedSubjects": '["maths"]',
-                "contact_method": "whatsapp", "contact_value": "+60 12 345 6789",
+                "email": "newmember@example.com", "whatsapp": "+60 12 345 6789",
                 "learner_guidelines_accepted": "yes", "learner_guidelines_version": LEARNER_GUIDELINES_VERSION,
                 "gender_own": "male", "gender_preferred": '["same"]', "age_preferred": '["same-age"]',
                 "days": json.dumps([["empty"]] * 7), "_csrf_token": "test-csrf", "is_coordinator": "true"}

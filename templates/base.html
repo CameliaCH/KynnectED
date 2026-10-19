@@ -32,6 +32,7 @@
     </div>
   </header>
   <div id="main-content" tabindex="-1">
+    {% if current_user and not account_email(current_user) and request.endpoint != 'complete_email' %}<p class="site-notice" role="status">Email is now required for password recovery. <a href="{{ url_for('complete_email') }}">Add your email address</a>.</p>{% endif %}
     {% for category, message in get_flashed_messages(with_categories=true) %}<p class="site-notice" role="status">{{ message }}</p>{% endfor %}
     {% block content %}{% endblock %}
   </div>

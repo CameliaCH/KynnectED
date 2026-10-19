@@ -6,10 +6,16 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 import click
 from account_store import read_accounts, edit_accounts, session_secret, mentor_is_approved, valid_contact_email, normalize_contact_number
+from account_store import account_email, account_whatsapp, next_account_id
+from database import uses_postgres
 from learning import learning, activity_for_user, room_summary, recording_report_summaries, MISSING_RECORDING_REASONS
 from materials import materials, approved_materials, approved_counts, submission_folders
 from recordings import recordings
+from password_reset import password_reset, init_password_reset
 from matcher import matching_results
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).with_name('.env'), override=False)
 
 ph = argon2.PasswordHasher()
 
@@ -22,6 +28,8 @@ MENTOR_CONDUCT_DOCUMENT_SHA256 = hashlib.sha256(MENTOR_CONDUCT_SIGNUP_FILE.read_
 CONDUCT_DOCUMENTS = json.loads((Path(__file__).parent / "content/mentor-conduct.json").read_text())
 
 app.config.update(
+    DATA_BACKEND=os.environ.get('KYNNECTED_DATA_BACKEND', 'local'),
+    SUPABASE_DATABASE_URL=os.environ.get('SUPABASE_DATABASE_URL', ''),
     TEMPLATES_AUTO_RELOAD=True,
     SECRET_KEY=session_secret(app.instance_path),
     USERS_FILE=os.environ.get("KYNNECTED_USERS_FILE", str(Path(__file__).with_name("users.json"))),
@@ -44,9 +52,15 @@ app.config.update(
     R2_ENDPOINT=os.environ.get('R2_ENDPOINT', ''),
     FFPROBE_BIN=os.environ.get("FFPROBE_BIN", "ffprobe"),
 )
+if app.config['DATA_BACKEND'] not in {'local', 'supabase'}:
+    raise RuntimeError('KYNNECTED_DATA_BACKEND must be local or supabase.')
+if app.config['DATA_BACKEND'] == 'supabase' and not app.config['SUPABASE_DATABASE_URL']:
+    raise RuntimeError('SUPABASE_DATABASE_URL is required for the Supabase backend.')
 app.register_blueprint(learning)
 app.register_blueprint(materials)
 app.register_blueprint(recordings)
+app.register_blueprint(password_reset)
+init_password_reset(app)
 
 
 def read_users():
@@ -62,9 +76,12 @@ def csrf_token():
 @app.before_request
 def load_current_user():
     g.current_user = None
+    if 'user_id' in session and session.get('data_backend', 'local') != ('supabase' if uses_postgres() else 'local'):
+        session.clear()
     if "user_id" in session:
         g.current_user = next((user for user in read_users() if user["id"] == session["user_id"]), None)
-        if g.current_user is None:
+        if g.current_user is None or session.get("auth_version", 0) != g.current_user.get("auth_version", 0):
+            g.current_user = None
             session.clear()
     if request.method == "POST":
         if request.endpoint == 'learning.upload_recording':
@@ -79,17 +96,22 @@ def load_current_user():
         supplied = request.headers.get("X-CSRF-Token") or request.form.get("_csrf_token", "")
         if not expected or not hmac.compare_digest(expected.encode("utf-8"), supplied.encode("utf-8")):
             abort(400, description="This form has expired. Reload the page and try again.")
+    if (g.current_user and session.get('require_email') and not account_email(g.current_user)
+            and request.endpoint not in {'complete_email', 'logout', 'static'}
+            and request.blueprint != 'password_reset'):
+        return redirect(url_for('complete_email'))
 
 
 @app.context_processor
 def account_context():
     return {"current_user": g.current_user, "csrf_token": csrf_token,
+            "account_email": account_email, "account_whatsapp": account_whatsapp,
             "can_submit_materials": bool(g.current_user and (mentor_is_approved(g.current_user) or g.current_user.get('is_coordinator') is True))}
 
 
 @app.after_request
 def protect_account_responses(response):
-    if request.endpoint in {"dashboard", "coordinator", "pairings", "export", "export_csv", "mentor_approvals", "approve_mentor"}:
+    if request.endpoint in {"dashboard", "coordinator", "pairings", "export", "export_csv", "mentor_approvals", "approve_mentor", "complete_email"}:
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -153,6 +175,7 @@ def build_users_csv(users, role=None):
 		"id",
 		"username",
 		"email",
+		"whatsapp",
 		"contact_method",
 		"contact_value",
 		"firstname",
@@ -174,7 +197,7 @@ def build_users_csv(users, role=None):
 	]
 
 	if role in {"mentor", "pending-mentor"}:
-		fieldnames += ["mentor_approval_status", "mentor_applied_at", "mentor_approved_at", "mentor_approved_by"]
+		fieldnames += ["school", "mentor_approval_status", "mentor_applied_at", "mentor_approved_at", "mentor_approved_by"]
 	if role == "mentor":
 		fieldnames += ["missing_recording_count", "recording_flagged"]
 		fieldnames += ["missing_recording_" + reason for reason in MISSING_RECORDING_REASONS]
@@ -202,7 +225,8 @@ def build_users_csv(users, role=None):
 		row = {
 			"id": user.get("id"),
 			"username": user.get("username"),
-			"email": user.get("email", ""),
+			"email": account_email(user),
+			"whatsapp": account_whatsapp(user),
 			"contact_method": user.get("contact_method", "email" if user.get("email") else ""),
 			"contact_value": user.get("contact_value", user.get("email", "")),
 			"firstname": name[0] if len(name) > 0 else "",
@@ -220,6 +244,7 @@ def build_users_csv(users, role=None):
 			row[day] = " ".join(availability.get(day, []))
 
 		if role in {"mentor", "pending-mentor"}:
+			row["school"] = user.get("school", "")
 			row["mentor_approval_status"] = user.get("mentor_approval_status", "approved")
 			for field in ("mentor_applied_at", "mentor_approved_at", "mentor_approved_by"):
 				row[field] = user.get(field, "")
@@ -302,17 +327,17 @@ def signup_process():
         or request.form.get("learner_guidelines_version") != LEARNER_GUIDELINES_VERSION
     ):
         return {"error": "guidelines", "message": "Please read and agree to the learner guide before signing up."}, 400
-    contact_method = request.form.get('contact_method', '')
-    contact_value = request.form.get('contact_value', '').strip()
-    if contact_method not in {'whatsapp', 'email'}:
-        return {'error': 'contact', 'message': 'Choose how the KynnectED team should contact you: WhatsApp or email.'}, 400
-    if contact_method == 'email':
-        if not valid_contact_email(contact_value):
-            return {'error': 'contact', 'message': 'Enter a valid contact email address.'}, 400
-    else:
-        contact_value = normalize_contact_number(contact_value)
-        if not contact_value:
-            return {'error': 'contact', 'message': 'Enter a WhatsApp number with 7–15 digits. You can include +, spaces, brackets, and dashes.'}, 400
+    email = request.form.get('email', '').strip()
+    whatsapp = request.form.get('whatsapp', '').strip()
+    if not valid_contact_email(email):
+        return {'error': 'contact', 'message': 'Enter a valid email address. Email is required for password recovery and account updates.'}, 400
+    if whatsapp:
+        whatsapp = normalize_contact_number(whatsapp)
+        if not whatsapp:
+            return {'error': 'contact', 'message': 'Enter a WhatsApp number with 7–15 digits, or leave it blank.'}, 400
+    school = request.form.get('school', '').strip()
+    if request.form['role'] == 'mentor' and not 1 <= len(school) <= 150:
+        return {'error': 'school', 'message': 'Enter your college or high school name (up to 150 characters).'}, 400
     try:
         availability = json.loads(request.form["days"])
         subjects = json.loads(request.form["selectedSubjects"])
@@ -348,22 +373,21 @@ def signup_process():
         if any(user["username"].lower() == username for user in users):
             return {"error": "2"}
         users.append({
-            "id": max((user["id"] for user in users), default=0) + 1,
+            "id": next_account_id(users),
             "username": username, "password": password_hash,
             "name": [request.form["firstname"], request.form["surname"]],
             "subjects": subjects, "age": age, "gender": request.form["gender_own"],
             "gender_preferred": gender_preferred, "age_preferred": age_preferred,
             "role": request.form["role"], "partners": [],
-            "contact_method": contact_method, "contact_value": contact_value,
+            "email": email, "whatsapp": whatsapp,
+            "contact_method": "email", "contact_value": email,
             "availability": dict(zip(
                 ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
                 availability,
             )),
         })
-        if contact_method == "email":
-            users[-1]["email"] = contact_value
         if request.form["role"] == "mentor":
-            users[-1].update(mentor_approval_status='pending',
+            users[-1].update(school=school, mentor_approval_status='pending',
                              mentor_applied_at=datetime.now(timezone.utc).isoformat())
             users[-1]["mentor_code_of_conduct"] = {
                 "version": MENTOR_CONDUCT_VERSION,
@@ -409,6 +433,8 @@ def error2():
 @app.route('/login')
 def login():
     if g.current_user:
+        if not account_email(g.current_user):
+            return redirect(url_for('complete_email'))
         return redirect(url_for("coordinator" if g.current_user.get("is_coordinator") else "dashboard"))
     return render_template("login.html")
 
@@ -425,9 +451,48 @@ def login_process():
         else:
             session.clear()
             session["user_id"] = user["id"]
+            session['data_backend'] = 'supabase' if uses_postgres() else 'local'
+            session["auth_version"] = user.get("auth_version", 0)
             session.permanent = True
+            if not account_email(user):
+                session['require_email'] = True
+                return redirect(url_for('complete_email'))
             return redirect(url_for("coordinator" if user.get("is_coordinator") is True else "dashboard"))
     return render_template("error.html", error="The login credentials you entered are incorrect."), 401
+
+
+@app.route('/account/email', methods=['GET', 'POST'])
+@login_required
+def complete_email():
+    destination = 'coordinator' if g.current_user.get('is_coordinator') is True else 'dashboard'
+    if account_email(g.current_user):
+        session.pop('require_email', None)
+        return redirect(url_for(destination))
+    email = request.form.get('email', '').strip()
+    whatsapp = request.form.get('whatsapp', account_whatsapp(g.current_user)).strip()
+    error = None
+    if request.method == 'POST':
+        if not valid_contact_email(email):
+            error = 'Enter a valid email address for password recovery.'
+        elif whatsapp and not normalize_contact_number(whatsapp):
+            error = 'Enter a WhatsApp number with 7–15 digits, or leave it blank.'
+        else:
+            with edit_accounts(app.config['USERS_FILE']) as users:
+                user = next(u for u in users if u['id'] == g.current_user['id'])
+                try:
+                    ph.verify(user['password'], request.form.get('password', ''))
+                except (argon2.exceptions.VerificationError, argon2.exceptions.InvalidHashError):
+                    error = 'Your current password is incorrect.'
+                else:
+                    if not account_email(user):
+                        user.update(email=email, whatsapp=normalize_contact_number(whatsapp) if whatsapp else '',
+                                    contact_method='email', contact_value=email)
+                        user.pop('password_reset', None)
+            if not error:
+                session.pop('require_email', None)
+                flash('Email saved. Password reset links will be sent to this address.', 'success')
+                return redirect(url_for(destination))
+    return render_template('complete_email.html', email=email, whatsapp=whatsapp, error=error), 400 if error else 200
 
 
 @app.route('/logout', methods=['POST'])

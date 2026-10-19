@@ -12,6 +12,7 @@
       <label for="password">Password<input type="password" placeholder="Your password" name="password" id="password" autocomplete="current-password" required></label>
       <button type="submit" class="button">Log in</button>
     </form>
+    <p class="account-switch"><a href="{{ url_for('password_reset.forgot') }}">Forgot your password?</a></p>
     <p class="account-switch">Don’t have an account? <a href="{{ url_for('signup') }}">Sign up</a></p>
     <p class="auth-help">Need help? <a href="{{ url_for('contact') }}">Contact us</a>.</p>
   </section>

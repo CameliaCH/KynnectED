@@ -1,13 +1,11 @@
 {% macro participant_contact(person) -%}
-  {% set method = person.get('contact_method', 'email' if person.get('email') else '') %}
-  {% set value = person.get('contact_value', person.get('email', '')) %}
-  {% if method == 'email' and value %}
-    Email: <a href="mailto:{{ value }}">{{ value }}</a>
-  {% elif method == 'phone' and value %}
-    Phone call: {{ value }}
-  {% elif method == 'whatsapp' and value %}
-    WhatsApp: {{ value }}
-  {% else %}
+  {% set email = person.get('email') or (person.get('contact_value', '') if person.get('contact_method') == 'email' else '') %}
+  {% set whatsapp = person.get('whatsapp', person.get('contact_value', '') if person.get('contact_method') == 'whatsapp' else '') %}
+  {% if email %}Email: <a href="mailto:{{ email }}">{{ email }}</a>{% endif %}
+  {% if whatsapp %}{% if email %}<br>{% endif %}WhatsApp: {{ whatsapp }}{% endif %}
+  {% if not email and not whatsapp %}
+    {% if person.get('contact_method') == 'phone' %}Phone call: {{ person.get('contact_value', '') }}{% else %}
     Not provided
+    {% endif %}
   {% endif %}
 {%- endmacro %}
