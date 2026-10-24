@@ -58,6 +58,12 @@
                 <input id="school" name="school" type="text" maxlength="150" disabled aria-describedby="school-help">
                 <p id="school-help" class="availability-help">Enter the name of your college or high school. This is shared with the KynnectED team as part of your mentor application.</p>
             </fieldset>
+            <fieldset class="signup-contact" id="learner-centre-field" hidden>
+                <legend>Your learning centre</legend>
+                <label for="centre">Which centre are you from?</label>
+                <input id="centre" name="centre" type="text" maxlength="150" disabled aria-describedby="centre-help">
+                <p id="centre-help" class="availability-help">Enter your centre's name. You can leave this blank if you do not attend a centre.</p>
+            </fieldset>
             <fieldset class="signup-contact">
                 <legend>Your contact details</legend>
                 <p class="availability-help" id="contact-privacy">Your email is required for password reset links and account updates. You can also add WhatsApp for team contact. These details are not shown to your mentor or learner. Keep your mentoring conversations in KynnectED chat.</p>
@@ -178,6 +184,7 @@
         const emailInput = document.getElementById("email");
         const whatsappInput = document.getElementById("whatsapp");
         const schoolInput = document.getElementById("school");
+        const centreInput = document.getElementById("centre");
         const usernameInput = document.getElementById("username");
         const usernameError = document.getElementById("username-error");
         usernameInput.addEventListener("input", () => {
@@ -240,6 +247,7 @@
                 data.set("mentor_conduct_version", guide.dialog.dataset.version);
                 data.set("mentor_conduct_document_sha256", guide.dialog.dataset.documentSha256);
             } else {
+                data.set("centre", centreInput.value.trim());
                 data.set("learner_guidelines_accepted", "yes");
                 data.set("learner_guidelines_version", guide.dialog.dataset.version);
             }
@@ -268,7 +276,7 @@
                     usernameError.hidden = false;
                     usernameInput.setAttribute("aria-invalid", "true");
                     usernameInput.focus();
-                } else if (result.error === "contact" || result.error === "school") {
+                } else if (result.error === "contact" || result.error === "school" || result.error === "centre") {
                     guide.dialog.close();
                     for (let step = 1; step <= 7; step++) {
                         document.getElementById(`part${step}`).style.display = step === 2 ? "flex" : "none";
@@ -277,7 +285,7 @@
                     document.getElementById("next").textContent = "Next";
                     document.getElementById("error").textContent = result.message;
                     document.getElementById("error").classList.add("show");
-                    (result.error === 'school' ? schoolInput : result.message.includes('WhatsApp') ? whatsappInput : emailInput).focus();
+                    (result.error === 'centre' ? centreInput : result.error === 'school' ? schoolInput : result.message.includes('WhatsApp') ? whatsappInput : emailInput).focus();
                 } else {
                     if (result.error === "conduct" || result.error === "guidelines") guide.checkbox.checked = false;
                     throw new Error(result.message || "We couldn’t complete your signup. Reload the page and try again.");
@@ -344,6 +352,12 @@
                     return;
                 }
                 if (!availabilityPreview) {
+                    if (role === "mentee" && centreInput.value.trim().length > 150) {
+                        document.getElementById("error").textContent = "Enter a centre name of up to 150 characters.";
+                        document.getElementById("error").classList.add("show");
+                        centreInput.focus();
+                        return;
+                    }
                     if (role === "mentor" && (!schoolInput.value.trim() || schoolInput.value.trim().length > 150)) {
                         document.getElementById("error").textContent = "Enter your college or high school name (up to 150 characters).";
                         document.getElementById("error").classList.add("show");
@@ -585,6 +599,8 @@
                 document.getElementById("mentor-school-field").hidden = role !== "mentor";
                 schoolInput.disabled = role !== "mentor";
                 schoolInput.required = role === "mentor" && !availabilityPreview;
+                document.getElementById("learner-centre-field").hidden = role !== "mentee";
+                centreInput.disabled = role !== "mentee";
                 for (const option of document.querySelectorAll(".role")) {
                     option.setAttribute("aria-pressed", String(option === roleButton));
                 }

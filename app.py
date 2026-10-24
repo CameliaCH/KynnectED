@@ -338,6 +338,9 @@ def signup_process():
     school = request.form.get('school', '').strip()
     if request.form['role'] == 'mentor' and not 1 <= len(school) <= 150:
         return {'error': 'school', 'message': 'Enter your college or high school name (up to 150 characters).'}, 400
+    centre = request.form.get('centre', '').strip()
+    if request.form['role'] == 'mentee' and len(centre) > 150:
+        return {'error': 'centre', 'message': 'Enter a centre name of up to 150 characters.'}, 400
     try:
         availability = json.loads(request.form["days"])
         subjects = json.loads(request.form["selectedSubjects"])
@@ -395,6 +398,7 @@ def signup_process():
                 "accepted_at": datetime.now(timezone.utc).isoformat(),
             }
         else:
+            users[-1]['centre'] = centre
             users[-1]["learner_guidelines"] = {
                 "version": LEARNER_GUIDELINES_VERSION,
                 "accepted_at": datetime.now(timezone.utc).isoformat(),
