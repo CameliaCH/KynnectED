@@ -557,6 +557,47 @@ class LearningTests(unittest.TestCase):
             self.assertEqual(self.client.post(path, data={"_csrf_token": "test-csrf", "message": message}).status_code, 400)
         self.assertEqual(self.client.get(path + '?after=invalid').status_code, 400)
 
+    def test_chat_send_supports_sqlite_without_returning(self):
+        class LegacyConnection(sqlite3.Connection):
+            def execute(self, sql, parameters=()):
+                if 'RETURNING' in sql.upper().split():
+                    raise sqlite3.OperationalError('near "RETURNING": syntax error')
+                return super().execute(sql, parameters)
+
+        connect = sqlite3.connect
+        with patch('learning.sqlite3.connect', side_effect=lambda *args, **kwargs: connect(
+                *args, **kwargs, factory=LegacyConnection)):
+            for mentee, body in [(3, 'First message'), (4, 'Other pairing'), (3, 'Second message')]:
+                response = self.client.post(f'/pairings/1/{mentee}/messages', data={
+                    '_csrf_token': 'test-csrf', 'message': body})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual([message['body'] for message in response.json['messages']], [body])
+            self.auth(3)
+            messages = self.client.get('/pairings/1/3/messages').json['messages']
+            self.assertEqual([message['body'] for message in messages], ['First message', 'Second message'])
+            self.assertLess(messages[0]['id'], messages[1]['id'])
+
+    def test_chat_errors_explain_expired_forms_and_sessions(self):
+        path = '/pairings/1/3/messages'
+        for token in ['', 'stale-token']:
+            response = self.client.post(path, data={'_csrf_token': token, 'message': 'Keep my draft'})
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(response.json['error'], 'This form has expired. Reload the page and try again.')
+            self.assertEqual(response.headers['Cache-Control'], 'no-store')
+        self.assertEqual(self.client.get(path).json['messages'], [])
+        with self.client.session_transaction() as session:
+            session.clear()
+        response = self.client.post(path, data={'_csrf_token': 'test-csrf', 'message': 'Not sent'})
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.json['error'], 'Please log in again to use chat.')
+
+    def test_chat_access_errors_are_json(self):
+        self.auth(2)
+        response = self.client.post('/pairings/1/3/messages', data={
+            '_csrf_token': 'test-csrf', 'message': 'Not sent'})
+        self.assertEqual(response.status_code, 403)
+        self.assertIn('linked participants', response.json['error'])
+
     def test_unlink_revokes_room_access_but_keeps_learning_history(self):
         lesson = self.create(past=True)
         self.seed_legacy_recording(lesson["id"])

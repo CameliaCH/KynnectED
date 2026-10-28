@@ -80,6 +80,8 @@ def load_current_user():
             g.current_user = None
             session.clear()
     if request.method == "POST":
+        if request.endpoint == 'learning.messages' and g.current_user is None:
+            return {'error': 'Please log in again to use chat.'}, 401
         if request.endpoint == 'learning.upload_recording':
             abort(410, description='Video uploads now go directly to private storage. Reload the lesson page.')
         if request.blueprint == 'recordings' and g.current_user is None:
@@ -137,6 +139,8 @@ def coordinator_required(view):
 @app.errorhandler(413)
 @app.errorhandler(503)
 def account_error(error):
+    if request.endpoint == 'learning.messages':
+        return {'error': error.description}, error.code
     if error.code == 413:
         if request.endpoint == 'materials.submit':
             limit = app.config['MAX_MATERIAL_BYTES'] // (1024 * 1024)

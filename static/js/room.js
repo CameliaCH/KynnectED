@@ -30,17 +30,23 @@
   let last = Math.max(0, ...seen);
   let stopped = false;
   let pending = null;
+  let sendError = '';
   list.scrollTop = list.scrollHeight;
 
   async function fetchMessages(url, options) {
     const response = await fetch(url, options);
+    const data = await response.json().catch(() => null);
     if ([401, 403].includes(response.status) || response.redirected) {
       stopped = true;
       if (form) form.querySelector('button').disabled = true;
-      throw new Error('Chat access has ended. Reload the page or log in again.');
+      throw new Error(data?.error || 'Chat access has ended. Reload the page or log in again.');
     }
-    if (!response.ok) throw new Error('Could not load or send messages. Please try again.');
-    return response.json();
+    if (!response.ok) {
+      const action = options?.method === 'POST' ? 'send your message' : 'load messages';
+      throw new Error(data?.error || `Could not ${action} (error ${response.status}). Please try again.`);
+    }
+    if (!data || !Array.isArray(data.messages)) throw new Error('Could not read messages. Reload the page and try again.');
+    return data;
   }
 
   function add(messages, prepend = false) {
@@ -75,7 +81,7 @@
   function poll() {
     if (pending || stopped) return pending;
     pending = fetchMessages(`${chat.dataset.messagesUrl}?after=${last}`)
-      .then(data => { add(data.messages); status.textContent = ''; })
+      .then(data => { add(data.messages); status.textContent = sendError; })
       .catch(error => { status.textContent = error.message; })
       .finally(() => { pending = null; });
     return pending;
@@ -99,10 +105,12 @@
     button.disabled = true;
     try {
       await fetchMessages(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+      sendError = '';
+      status.textContent = '';
       document.getElementById('chat-message').value = '';
       await poll();
       list.scrollTop = list.scrollHeight;
-    } catch (error) { status.textContent = error.message; }
+    } catch (error) { sendError = error.message; status.textContent = sendError; }
     finally { button.disabled = stopped; }
   });
   setInterval(() => { if (!document.hidden) poll(); }, 5000);

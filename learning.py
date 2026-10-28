@@ -544,9 +544,9 @@ def messages(mentor_id, mentee_id):
         if not body or len(body) > 2000:
             return jsonify(error="Write a message between 1 and 2,000 characters."), 400
         with get_db() as db:
-            cursor = db.execute("INSERT INTO messages(mentor_id, mentee_id, sender_id, body, created_at) VALUES (?, ?, ?, ?, ?) RETURNING id",
+            cursor = db.execute("INSERT INTO messages(mentor_id, mentee_id, sender_id, body, created_at) VALUES (?, ?, ?, ?, ?)",
                                 (mentor_id, mentee_id, g.current_user["id"], body, int(time.time())))
-            id = cursor.fetchone()['id']
+            id = cursor.lastrowid
         return jsonify(messages=message_rows(mentor_id, mentee_id, after=id - 1))
     try:
         after = int(request.args["after"]) if "after" in request.args else None
