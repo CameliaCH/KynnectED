@@ -3,7 +3,7 @@ import json, argon2, csv, io, os, secrets, hmac, hashlib
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
-from zoneinfo import ZoneInfo
+from backports.zoneinfo import ZoneInfo
 import click
 from account_store import read_accounts, edit_accounts, session_secret, mentor_is_approved, valid_contact_email, normalize_contact_number
 from account_store import account_email, account_whatsapp, next_account_id
