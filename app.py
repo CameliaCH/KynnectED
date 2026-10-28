@@ -3,11 +3,13 @@ import json, argon2, csv, io, os, secrets, hmac, hashlib
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
-from backports.zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 import click
 from account_store import read_accounts, edit_accounts, session_secret, mentor_is_approved, valid_contact_email, normalize_contact_number
 from account_store import account_email, account_whatsapp, next_account_id
-from database import uses_postgres
 from learning import learning, activity_for_user, room_summary, recording_report_summaries, MISSING_RECORDING_REASONS
 from materials import materials, approved_materials, approved_counts, submission_folders
 from recordings import recordings
@@ -28,8 +30,6 @@ MENTOR_CONDUCT_DOCUMENT_SHA256 = hashlib.sha256(MENTOR_CONDUCT_SIGNUP_FILE.read_
 CONDUCT_DOCUMENTS = json.loads((Path(__file__).parent / "content/mentor-conduct.json").read_text())
 
 app.config.update(
-    DATA_BACKEND=os.environ.get('KYNNECTED_DATA_BACKEND', 'local'),
-    SUPABASE_DATABASE_URL=os.environ.get('SUPABASE_DATABASE_URL', ''),
     TEMPLATES_AUTO_RELOAD=True,
     SECRET_KEY=session_secret(app.instance_path),
     USERS_FILE=os.environ.get("KYNNECTED_USERS_FILE", str(Path(__file__).with_name("users.json"))),
@@ -52,10 +52,6 @@ app.config.update(
     R2_ENDPOINT=os.environ.get('R2_ENDPOINT', ''),
     FFPROBE_BIN=os.environ.get("FFPROBE_BIN", "ffprobe"),
 )
-if app.config['DATA_BACKEND'] not in {'local', 'supabase'}:
-    raise RuntimeError('KYNNECTED_DATA_BACKEND must be local or supabase.')
-if app.config['DATA_BACKEND'] == 'supabase' and not app.config['SUPABASE_DATABASE_URL']:
-    raise RuntimeError('SUPABASE_DATABASE_URL is required for the Supabase backend.')
 app.register_blueprint(learning)
 app.register_blueprint(materials)
 app.register_blueprint(recordings)
@@ -76,7 +72,7 @@ def csrf_token():
 @app.before_request
 def load_current_user():
     g.current_user = None
-    if 'user_id' in session and session.get('data_backend', 'local') != ('supabase' if uses_postgres() else 'local'):
+    if 'user_id' in session and session.get('data_backend', 'local') != 'local':
         session.clear()
     if "user_id" in session:
         g.current_user = next((user for user in read_users() if user["id"] == session["user_id"]), None)
@@ -455,7 +451,7 @@ def login_process():
         else:
             session.clear()
             session["user_id"] = user["id"]
-            session['data_backend'] = 'supabase' if uses_postgres() else 'local'
+            session['data_backend'] = 'local'
             session["auth_version"] = user.get("auth_version", 0)
             session.permanent = True
             if not account_email(user):

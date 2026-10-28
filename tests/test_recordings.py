@@ -313,7 +313,11 @@ class RecordingTests(unittest.TestCase):
             self.assertEqual(self.post(upload['complete_url']).status_code, 403)
             self.assertEqual(self.post(upload['abort_url']).status_code, 403)
             room = self.client.get('/pairings/1/3').get_data(as_text=True)
-            self.assertIn('Read-only admin view.', room)
+            if user == 99:
+                self.assertIn('Read-only admin view.', room)
+            else:
+                self.assertNotIn('Read-only admin view.', room)
+                self.assertIn('id="chat-form"', room)
             self.assertNotIn('data-recording-version', room)
         self.assertEqual(self.upload_row(upload['upload_id'])['status'], 'pending')
         self.assertIsNone(self.lesson(self.session['id'])['recorded_at'])

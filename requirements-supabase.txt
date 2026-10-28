@@ -1,5 +1,0 @@
-# Migration tooling; install alongside the existing application requirements.
-python-dotenv>=1.1,<2
-supabase>=2.22,<3
-# The current project virtual environment uses Python 3.9.
-psycopg[binary]>=3.2,<3.3

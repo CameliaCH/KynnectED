@@ -91,6 +91,14 @@ class AccountTests(unittest.TestCase):
         with self.client.session_transaction() as session:
             self.assertNotIn("user_id", session)
 
+    def test_sessions_from_a_previous_backend_require_login(self):
+        self.authenticate()
+        with self.client.session_transaction() as session:
+            session['data_backend'] = 'previous-backend'
+        self.assertEqual(self.client.get('/dashboard').location, '/login')
+        with self.client.session_transaction() as session:
+            self.assertNotIn('user_id', session)
+
     def test_many_to_many_links_persist_on_both_accounts(self):
         self.authenticate()
         for mentor, mentee in [(1, 3), (1, 4), (2, 3), (1, 3)]:

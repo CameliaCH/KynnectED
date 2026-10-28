@@ -228,7 +228,7 @@ class LearningTests(unittest.TestCase):
                     self.assertEqual(self.client.post(f'/lessons/{lesson["id"]}/cancel', data={'_csrf_token': 'test-csrf'}).status_code, expected)
                     self.assertEqual(self.lesson(lesson['id']), lesson)
 
-    def test_admin_room_access_is_read_only_even_for_paired_accounts(self):
+    def test_admin_lesson_management_stays_read_only_but_participants_can_chat(self):
         future = self.create()
         past = self.create(past=True)
         recorded = self.create(title='Recorded lesson', scheduled_at=(
@@ -246,14 +246,24 @@ class LearningTests(unittest.TestCase):
                 response = self.client.get('/pairings/1/3')
                 self.assertEqual(response.status_code, 200)
                 html = response.get_data(as_text=True)
-                for text in ('Read-only admin view.', 'Algebra practice', 'Recorded lesson',
+                for text in ('Algebra practice', 'Recorded lesson',
                              'Existing conversation', 'Watch recording'):
                     self.assertIn(text, html)
                 for text in ('Add a lesson', 'Edit lesson', 'Cancel lesson', 'Upload recording',
-                             'Replace this recording', 'Don’t have a recording?', 'Send message',
-                             'Mark reviewed', '<textarea'):
+                             'Replace this recording', 'Don’t have a recording?', 'Mark reviewed'):
                     self.assertNotIn(text, html)
-                self.assertEqual(len(self.client.get(chat).json['messages']), 1)
+                for text in ('Send message', 'id="chat-form"'):
+                    if user_id in (1, 3):
+                        self.assertIn(text, html)
+                    else:
+                        self.assertNotIn(text, html)
+                if user_id in (1, 3):
+                    self.assertNotIn('Read-only admin view.', html)
+                    self.assertNotIn('This chat is read-only for you.', html)
+                else:
+                    self.assertIn('Read-only admin view.', html)
+                    self.assertIn('This chat is read-only for you.', html)
+                self.assertEqual(self.client.get(chat).json['messages'][0]['body'], 'Existing conversation')
                 video = self.client.get(f'/lessons/{recorded["id"]}/recording')
                 self.assertEqual(video.status_code, 200)
                 video.close()
@@ -261,7 +271,11 @@ class LearningTests(unittest.TestCase):
                 self.assertEqual(self.client.post(f'/lessons/{future["id"]}/edit', data=self.form(title='Changed')).status_code, 403)
                 self.assertEqual(self.client.post(f'/lessons/{future["id"]}/cancel', data={'_csrf_token': 'test-csrf'}).status_code, 403)
                 self.assertEqual(self.report(past['id']).status_code, 403)
-                self.assertEqual(self.client.post(chat, data={'_csrf_token': 'test-csrf', 'message': 'Admin reply'}).status_code, 403)
+                reply = self.client.post(chat, data={'_csrf_token': 'test-csrf',
+                                                     'message': 'Admin reply', 'sender_id': '99'})
+                self.assertEqual(reply.status_code, 200 if user_id in (1, 3) else 403)
+                if user_id in (1, 3):
+                    self.assertEqual(reply.json['messages'][0]['sender_id'], user_id)
                 dashboard = self.client.get('/dashboard').get_data(as_text=True)
                 self.assertNotIn('Upload recording', dashboard)
                 self.assertNotIn('data-recording-version', dashboard)
@@ -270,8 +284,30 @@ class LearningTests(unittest.TestCase):
         with app.app_context():
             db = get_db()
             self.assertEqual(db.execute('SELECT COUNT(*) FROM lessons').fetchone()[0], 3)
-            self.assertEqual(db.execute('SELECT COUNT(*) FROM messages').fetchone()[0], 1)
+            self.assertEqual([row['sender_id'] for row in db.execute('SELECT sender_id FROM messages ORDER BY id')], [1, 1, 3])
             self.assertEqual(db.execute('SELECT COUNT(*) FROM missing_recording_reports').fetchone()[0], 0)
+
+    def test_coordinator_participants_cannot_chat_after_unlink_or_approval_revocation(self):
+        path = '/pairings/1/3/messages'
+        for inactive_reason in ('unlinked', 'pending_mentor'):
+            with edit_accounts(app.config['USERS_FILE']) as users:
+                for user in users:
+                    if user['id'] in (1, 3):
+                        user['is_coordinator'] = True
+                        user['partners'] = [] if inactive_reason == 'unlinked' else [3 if user['id'] == 1 else 1]
+                    if user['id'] == 1:
+                        user['mentor_approval_status'] = 'pending' if inactive_reason == 'pending_mentor' else 'approved'
+            for user_id in (1, 3):
+                with self.subTest(reason=inactive_reason, user=user_id):
+                    self.auth(user_id)
+                    html = self.client.get('/pairings/1/3').get_data(as_text=True)
+                    self.assertNotIn('id="chat-form"', html)
+                    self.assertIn('This chat is read-only for you.', html)
+                    self.assertEqual(self.client.get(path).status_code, 200)
+                    self.assertEqual(self.client.post(path, data={
+                        '_csrf_token': 'test-csrf', 'message': 'Must not be sent'}).status_code, 403)
+        with app.app_context():
+            self.assertEqual(get_db().execute('SELECT COUNT(*) FROM messages').fetchone()[0], 0)
 
     def test_missing_recording_validates_reason_other_text_and_access(self):
         lesson = self.create(past=True)

@@ -2,13 +2,10 @@
 
 Install dependencies and configure recording storage using the commands below, then visit http://localhost:5001.
 
-Supabase migration, backup tooling, and account-email requirements
-are documented in [docs/supabase-migration.md](docs/supabase-migration.md).
-Set `KYNNECTED_DATA_BACKEND=supabase` after importing the database to use Supabase
-Postgres for accounts and application records. `local` uses JSON and SQLite.
-Authentication currently remains in Flask, with password hashes in a private
-Postgres schema when using Supabase. Supabase Auth and Storage are separate,
-remaining stages; recordings continue to use R2 until the storage migration.
+Accounts use `users.json`; lessons, chat, materials and recording metadata use
+`instance/learning.sqlite3`. Password reset counters use `users.reset-limits.sqlite3`.
+Recordings continue to use the existing private Cloudflare R2 storage.
+Local backup and deployment instructions are in [docs/local-storage.md](docs/local-storage.md).
 
 ## Public website and resource library
 
@@ -279,10 +276,11 @@ The token and session controls follow the
 Click a pairing on your dashboard to open its private room. Coordinators can
 also open rooms from **Pairings** or **Lessons & recordings**.
 
-- Mentors can add, edit, and cancel their lessons. Admins have read-only room
-  access, including accounts that also have the mentor role or are paired.
+- Mentors can add, edit, and cancel their lessons. Admins have read-only lesson
+  management access, including accounts that also have the mentor role or are paired.
   Admins cannot schedule, edit, cancel, upload recordings, submit missing-recording
-  explanations, or send chat messages. Dates use
+  explanations. Coordinators who are the assigned mentor or mentee can send chat
+  messages in their active pairings; other rooms remain read-only. Dates use
   `Asia/Kuala_Lumpur` (UTC+8). Paste an existing HTTPS Zoom meeting link;
   the app does not create Zoom meetings or start recording automatically.
 - Record the session in Zoom, then upload MP4/MOV (H.264) or WebM (VP8/VP9/AV1)
@@ -297,7 +295,7 @@ also open rooms from **Pairings** or **Lessons & recordings**.
   inside their room. Chat is saved and checks for new messages automatically.
   Coordinators can read chat for support and watch recordings. Quality reviews
   and safeguarding retention are managed from
-  **Lessons & recordings**, outside the read-only pairing room.
+  **Lessons & recordings**, outside the pairing room.
   Admins select an admin reviewer and add comments before marking reviewed.
   The final reviewer name, date, and comments are visible to the paired mentor
   and student. Marking reviewed is permanent: the form disappears and the server

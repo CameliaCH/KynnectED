@@ -49,28 +49,16 @@ def account_whatsapp(user):
 
 
 def read_accounts(path, config=None):
-    from database import uses_postgres, read_postgres_accounts
-    if uses_postgres(config):
-        return read_postgres_accounts(config)
     with Path(path).open(encoding="utf-8") as source:
         return json.load(source)
 
 
 def next_account_id(users):
-    from database import uses_postgres, connect
-    if uses_postgres():
-        with connect() as connection:
-            return connection.execute("SELECT nextval(pg_get_serial_sequence('profiles', 'id')) AS id").fetchone()['id']
     return max((user['id'] for user in users), default=0) + 1
 
 
 @contextmanager
 def edit_accounts(path, config=None):
-    from database import uses_postgres, edit_postgres_accounts
-    if uses_postgres(config):
-        with edit_postgres_accounts(config) as accounts:
-            yield accounts
-        return
     path = Path(path)
     # Lock a separate file: replacing the JSON must not replace the lock inode.
     with path.with_suffix(path.suffix + ".lock").open("a") as lock:

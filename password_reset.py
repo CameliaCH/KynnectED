@@ -91,11 +91,8 @@ def allow_request(config, username, address):
     now = time.time()
     keys = [(hmac.new(str(config['SECRET_KEY']).encode(), value.encode(), hashlib.sha256).hexdigest(), limit)
             for value, limit in [('user:' + username, 5), ('ip:' + address, 20)]]
-    from database import uses_postgres, PostgresDatabase
-    postgres = uses_postgres(config)
-    with closing(PostgresDatabase(config) if postgres else sqlite3.connect(path, timeout=10)) as db:
-        if not postgres:
-            db.execute('CREATE TABLE IF NOT EXISTS reset_limits (key TEXT PRIMARY KEY, started REAL, count INTEGER)')
+    with closing(sqlite3.connect(path, timeout=10)) as db:
+        db.execute('CREATE TABLE IF NOT EXISTS reset_limits (key TEXT PRIMARY KEY, started REAL, count INTEGER)')
         with db:
             db.execute('BEGIN IMMEDIATE')
             db.execute('DELETE FROM reset_limits WHERE started <= ?', (now - 3600,))
@@ -105,9 +102,8 @@ def allow_request(config, username, address):
                 if row and row[0] >= limit:
                     allowed = False
             # Still count rejected account requests against the IP allowance.
-            minimum = 'LEAST' if postgres else 'MIN'
             for key, limit in keys:
-                db.execute('INSERT INTO reset_limits VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET count = ' + minimum + '(reset_limits.count + 1, ?)',
+                db.execute('INSERT INTO reset_limits VALUES (?, ?, 1) ON CONFLICT(key) DO UPDATE SET count = MIN(reset_limits.count + 1, ?)',
                            (key, now, limit))
     return allowed
 

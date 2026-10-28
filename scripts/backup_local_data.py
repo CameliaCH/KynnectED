@@ -1,11 +1,5 @@
-"""Back up local data and prepare an email mapping without changing any accounts.
+"""Back up local accounts, SQLite records and files without changing them."""
 
-This script does not connect to Supabase, create users, or send messages.
-Run again during the final maintenance window for the definitive import snapshot.
-"""
-
-import csv
-from collections import Counter
 from datetime import datetime, timezone
 import fcntl
 import hashlib
@@ -19,18 +13,6 @@ import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
-from account_store import account_email
-
-
-def email_mapping(users):
-    counts = Counter(account_email(user).casefold() for user in users if account_email(user))
-    rows = []
-    for user in users:
-        email = account_email(user)
-        status = 'missing_email' if not email else 'duplicate_email' if counts[email.casefold()] > 1 else 'ready'
-        rows.append({'account_id': user['id'], 'username': user['username'],
-                     'current_email': email, 'migration_email': email, 'status': status})
-    return rows
 
 
 def snapshot_sqlite(source, destination):
@@ -67,13 +49,6 @@ def prepare(config, backup_root):
         target = destination / 'users.json'
         target.write_bytes(contents)
         target.chmod(0o600)
-        rows = email_mapping(users)
-        worksheet = destination / 'account-emails.csv'
-        with worksheet.open('w', encoding='utf-8', newline='') as output:
-            writer = csv.DictWriter(output, fieldnames=['account_id', 'username', 'current_email', 'migration_email', 'status'])
-            writer.writeheader()
-            writer.writerows(rows)
-        worksheet.chmod(0o600)
         counts = snapshot_sqlite(database, destination / 'learning.sqlite3') if database.exists() else {}
         file_counts = {}
         for label, setting in [('materials', 'KYNNECTED_MATERIALS_DIR'), ('recordings', 'KYNNECTED_RECORDINGS_DIR')]:
@@ -84,7 +59,7 @@ def prepare(config, backup_root):
                 shutil.copytree(source, destination / label)
         manifest = {
             'created_at': datetime.now(timezone.utc).isoformat(),
-            'accounts': len(users), 'email_status_counts': dict(Counter(row['status'] for row in rows)),
+            'accounts': len(users),
             'sqlite_rows': counts, 'local_files': file_counts,
             'scope': 'Local accounts, SQLite, materials and legacy recordings. Remote R2 objects are not copied.',
             'files_sha256': {},
@@ -102,7 +77,7 @@ def prepare(config, backup_root):
         manifest_path.chmod(0o600)
     except Exception:
         # Retain partial snapshots for inspection; never mistake them for a completed backup.
-        (destination / 'INCOMPLETE').write_text('Preparation failed. Do not use this snapshot for import.\n')
+        (destination / 'INCOMPLETE').write_text('Backup failed. Do not restore this incomplete snapshot.\n')
         raise
     return destination, manifest
 
@@ -110,14 +85,12 @@ def prepare(config, backup_root):
 def main():
     from dotenv import dotenv_values
     config = {**dotenv_values(ROOT / '.env', interpolate=False), **os.environ}
-    destination, manifest = prepare(config, ROOT / 'instance/supabase-migration')
+    destination, manifest = prepare(config, ROOT / 'instance/backups')
     print('Local backup:', destination)
-    print('Email worksheet:', destination / 'account-emails.csv')
     print('Accounts:', manifest['accounts'])
-    print('Email readiness:', json.dumps(manifest['email_status_counts']))
     print('SQLite row counts:', json.dumps(manifest['sqlite_rows']))
     print('Local file counts:', json.dumps(manifest['local_files']))
-    print('No source accounts, remote users, databases, or storage objects were changed.')
+    print('No source accounts, databases, or storage objects were changed.')
 
 
 if __name__ == '__main__':

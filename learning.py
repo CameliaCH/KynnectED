@@ -9,7 +9,10 @@ import subprocess
 import time
 from urllib.parse import urlsplit
 from uuid import uuid4
-from backports.zoneinfo import ZoneInfo
+try:
+    from zoneinfo import ZoneInfo
+except ImportError:
+    from backports.zoneinfo import ZoneInfo
 
 from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, send_file, url_for
 
@@ -136,10 +139,6 @@ LESSON_SELECT = """SELECT lessons.*, reports.reason AS missing_recording_reason,
 
 def get_db():
     if "learning_db" not in g:
-        from database import uses_postgres, PostgresDatabase
-        if uses_postgres():
-            g.learning_db = PostgresDatabase()
-            return g.learning_db
         path = Path(current_app.config["LEARNING_DATABASE"])
         path.parent.mkdir(parents=True, exist_ok=True)
         db = sqlite3.connect(path, timeout=20)
@@ -207,8 +206,8 @@ def room_access(mentor_id, mentee_id, manage=False, chat=False):
         abort(403, description="This pairing room is only available to its linked participants and coordinators.")
     if (manage or chat) and not active:
         abort(403, description="This pairing is inactive. Ask a coordinator to link the accounts again.")
-    if (manage or chat) and coordinator:
-        abort(403, description="Admins have read-only access to pairing rooms.")
+    if manage and coordinator:
+        abort(403, description="Admins have read-only access to lesson management.")
     can_manage = active and not coordinator and (g.current_user["id"] == mentor_id or (
         current_app.config["MENTEES_MANAGE_LESSONS"] and participant))
     if manage and not can_manage:
@@ -216,8 +215,8 @@ def room_access(mentor_id, mentee_id, manage=False, chat=False):
     if chat and not participant:
         abort(403, description="Coordinators can review this chat. Only the paired participants can send messages.")
     return {"mentor": mentor, "mentee": mentee, "active": active,
-            "can_manage": can_manage, "can_chat": active and participant and not coordinator,
-            "read_only": coordinator}
+            "can_manage": can_manage, "can_chat": active and participant,
+            "read_only": coordinator and not (active and participant)}
 
 
 def lesson_access(lesson_id, manage=False):
