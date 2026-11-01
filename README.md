@@ -117,6 +117,28 @@ Existing accounts without a valid email must add one at their next login, using
 show an add-email reminder. Their saved WhatsApp number is prefilled and preserved
 unless they edit it. Previously saved email contacts continue to work.
 
+Learners without a saved centre must complete **Which centre are you from?** at
+`/account/centre` before continuing, including in existing signed-in sessions.
+The answer is required, trimmed, and limited to 150 characters; learners who do
+not attend a centre can enter **No centre**. If email completion is also required,
+it comes first. The saved `centre` appears in the mentee table and CSV download.
+
+Mentors and learners returning to the platform see an **Enable notifications**
+prompt until push delivery is enabled on their device. **Not now** hides the prompt
+for that tab's visit; the header's **Notifications** control remains available.
+The prompt explains how to add KynnectED to the Home Screen on iPhone/iPad and how
+to allow notifications if browser permission is blocked. Users with completed
+notification setup are not prompted again. Required email/centre completion comes first.
+
+New chat messages create persistent delivery jobs for the recipient's subscribed
+devices. Web Push delivers generic alerts without chat text, including when the
+site is closed. Pairing access is checked again before sending; expired browser
+subscriptions are removed and temporary delivery failures retry for up to 24 hours.
+Turning notifications off or logging out removes this browser's server subscription.
+Previously queued provider notifications cannot be recalled. Alert delivery depends
+on connectivity and device settings; instant wake-up delivery is not guaranteed.
+See [Web Push setup and verification](docs/web-push.md) before deploying.
+
 New mentor signups start with
 `mentor_approval_status: pending`. Admins (existing Coordinator accounts) can
 review them in the separate pending mentor table at
@@ -347,6 +369,9 @@ python3 app.py
 ```
 
 The app loads `.env` automatically; explicitly exported environment variables take precedence.
+On later visits, run `.venv/bin/python app.py` to use the installed project dependencies
+without reactivating the virtual environment. A bare `python3 app.py` outside that
+environment uses a different Python installation and may report missing packages.
 Restart the app after changes. `.env`, `.venv` and `instance/` are git-ignored.
 Never put actual credentials in source, templates or commits.
 

@@ -16,6 +16,7 @@ from recordings import recordings
 from password_reset import password_reset, init_password_reset
 from matcher import matching_results
 from dotenv import load_dotenv
+from push_notifications import init_push, revoke_session_device
 
 load_dotenv(Path(__file__).with_name('.env'), override=False)
 
@@ -57,6 +58,7 @@ app.register_blueprint(materials)
 app.register_blueprint(recordings)
 app.register_blueprint(password_reset)
 init_password_reset(app)
+init_push(app)
 
 
 def read_users():
@@ -67,6 +69,10 @@ def csrf_token():
     if "csrf_token" not in session:
         session["csrf_token"] = secrets.token_urlsafe(32)
     return session["csrf_token"]
+
+
+def needs_centre(user):
+    return user and user.get('role') == 'mentee' and not (user.get('centre') or '').strip()
 
 
 @app.before_request
@@ -80,7 +86,7 @@ def load_current_user():
             g.current_user = None
             session.clear()
     if request.method == "POST":
-        if request.endpoint == 'learning.messages' and g.current_user is None:
+        if request.endpoint in {'learning.messages', 'learning.delete_message'} and g.current_user is None:
             return {'error': 'Please log in again to use chat.'}, 401
         if request.endpoint == 'learning.upload_recording':
             abort(410, description='Video uploads now go directly to private storage. Reload the lesson page.')
@@ -98,6 +104,10 @@ def load_current_user():
             and request.endpoint not in {'complete_email', 'logout', 'static'}
             and request.blueprint != 'password_reset'):
         return redirect(url_for('complete_email'))
+    if (needs_centre(g.current_user)
+            and request.endpoint not in {'complete_centre', 'complete_email', 'logout', 'static'}
+            and request.blueprint != 'password_reset'):
+        return redirect(url_for('complete_centre'))
 
 
 @app.context_processor
@@ -109,7 +119,7 @@ def account_context():
 
 @app.after_request
 def protect_account_responses(response):
-    if request.endpoint in {"dashboard", "coordinator", "pairings", "export", "export_csv", "mentor_approvals", "approve_mentor", "complete_email"}:
+    if request.endpoint in {"dashboard", "coordinator", "pairings", "export", "export_csv", "mentor_approvals", "approve_mentor", "complete_email", "complete_centre"}:
         response.headers["Cache-Control"] = "no-store"
     return response
 
@@ -139,7 +149,7 @@ def coordinator_required(view):
 @app.errorhandler(413)
 @app.errorhandler(503)
 def account_error(error):
-    if request.endpoint == 'learning.messages':
+    if request.endpoint in {'learning.messages', 'learning.delete_message'}:
         return {'error': error.description}, error.code
     if error.code == 413:
         if request.endpoint == 'materials.submit':
@@ -160,6 +170,12 @@ def set_coordinator(username, revoke):
             raise click.ClickException("No account has that username.")
         user["is_coordinator"] = not revoke
     click.echo(f"Coordinator access {'removed from' if revoke else 'granted to'} {username}.")
+
+@app.get('/message-notifications-worker.js')
+def message_notifications_worker():
+    return send_file(Path(app.static_folder) / 'js/message-notifications-worker.js',
+                     mimetype='application/javascript', max_age=0)
+
 
 @app.route('/signup')
 def signup():
@@ -196,6 +212,8 @@ def build_users_csv(users, role=None):
 		"saturday",
 	]
 
+	if role == "mentee":
+		fieldnames += ["centre"]
 	if role in {"mentor", "pending-mentor"}:
 		fieldnames += ["school", "mentor_approval_status", "mentor_applied_at", "mentor_approved_at", "mentor_approved_by"]
 	if role == "mentor":
@@ -243,6 +261,8 @@ def build_users_csv(users, role=None):
 		for day in days:
 			row[day] = " ".join(availability.get(day, []))
 
+		if role == "mentee":
+			row["centre"] = user.get("centre", "")
 		if role in {"mentor", "pending-mentor"}:
 			row["school"] = user.get("school", "")
 			row["mentor_approval_status"] = user.get("mentor_approval_status", "approved")
@@ -453,6 +473,7 @@ def login_process():
         except (argon2.exceptions.VerificationError, argon2.exceptions.InvalidHashError):
             pass
         else:
+            revoke_session_device()
             session.clear()
             session["user_id"] = user["id"]
             session['data_backend'] = 'local'
@@ -461,6 +482,8 @@ def login_process():
             if not account_email(user):
                 session['require_email'] = True
                 return redirect(url_for('complete_email'))
+            if needs_centre(user):
+                return redirect(url_for('complete_centre'))
             return redirect(url_for("coordinator" if user.get("is_coordinator") is True else "dashboard"))
     return render_template("error.html", error="The login credentials you entered are incorrect."), 401
 
@@ -499,9 +522,31 @@ def complete_email():
     return render_template('complete_email.html', email=email, whatsapp=whatsapp, error=error), 400 if error else 200
 
 
+@app.route('/account/centre', methods=['GET', 'POST'])
+@login_required
+def complete_centre():
+    destination = 'coordinator' if g.current_user.get('is_coordinator') is True else 'dashboard'
+    if not needs_centre(g.current_user):
+        return redirect(url_for(destination))
+    centre = request.form.get('centre', '').strip()
+    error = None
+    if request.method == 'POST':
+        if not 1 <= len(centre) <= 150:
+            error = 'Enter your centre name (up to 150 characters).'
+        else:
+            with edit_accounts(app.config['USERS_FILE']) as users:
+                user = next(u for u in users if u['id'] == g.current_user['id'])
+                if needs_centre(user):
+                    user['centre'] = centre
+            flash('Your learning centre has been saved.', 'success')
+            return redirect(url_for(destination))
+    return render_template('complete_centre.html', centre=centre, error=error), 400 if error else 200
+
+
 @app.route('/logout', methods=['POST'])
 @login_required
 def logout():
+    revoke_session_device()
     session.clear()
     return redirect(url_for("home"))
 

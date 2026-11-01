@@ -17,7 +17,7 @@ class ResourceTests(unittest.TestCase):
         path = Path(directory.name) / "users.json"
         path.write_text(json.dumps([
             {"id": 1, "username": "mentor", "name": ["Test", "Mentor"], "role": "mentor"},
-            {"id": 2, "username": "mentee", "name": ["Test", "Student"], "role": "mentee"},
+            {"id": 2, "username": "mentee", "name": ["Test", "Student"], "role": "mentee", "centre": "Example Centre"},
             {"id": 3, "username": "coordinator", "name": ["Test", "Coordinator"], "role": "staff", "is_coordinator": True},
             {"id": 4, "username": "othermentor", "name": ["Other", "Mentor"], "role": "mentor"},
         ]))

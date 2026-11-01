@@ -1,0 +1,11 @@
+{
+  "id": "/",
+  "name": "KynnectED",
+  "short_name": "KynnectED",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#FAF7F5",
+  "theme_color": "#FAF7F5",
+  "icons": [{"src": "/static/img/kynnected-app-icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]
+}

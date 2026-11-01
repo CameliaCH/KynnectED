@@ -17,6 +17,7 @@ except ImportError:
 from flask import Blueprint, abort, current_app, flash, g, jsonify, redirect, render_template, request, send_file, url_for
 
 from account_store import read_accounts, mentor_is_approved
+from push_notifications import PUSH_SCHEMA, enqueue_message
 
 learning = Blueprint("learning", __name__)
 
@@ -87,6 +88,15 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS messages_pair ON messages(mentor_id, mentee_id, id);
+CREATE TABLE IF NOT EXISTS message_deletions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    message_id INTEGER NOT NULL UNIQUE,
+    mentor_id INTEGER NOT NULL,
+    mentee_id INTEGER NOT NULL,
+    deleted_by INTEGER NOT NULL,
+    deleted_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS message_deletions_pair ON message_deletions(mentor_id, mentee_id, id);
 CREATE TABLE IF NOT EXISTS recordings (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL REFERENCES lessons(id),
@@ -144,7 +154,7 @@ def get_db():
         db = sqlite3.connect(path, timeout=20)
         db.row_factory = sqlite3.Row
         db.execute("PRAGMA journal_mode=WAL")
-        db.executescript(SCHEMA)
+        db.executescript(SCHEMA + PUSH_SCHEMA)
         # Upgrade existing databases without changing saved reviews or lesson records.
         review_columns = {'review_submitted_by': 'INTEGER', 'reviewer_name': 'TEXT'}
         tables = ('lessons', 'recordings')
@@ -343,7 +353,7 @@ def room_summary(mentor_id, mentee_id):
 
 
 @learning.get('/pairings/<int:mentor_id>/<int:mentee_id>')
-def room(mentor_id, mentee_id):
+def room(mentor_id, mentee_id, moderation=False):
     pair = room_access(mentor_id, mentee_id)
     users = users_by_id()
     now = time.time()
@@ -354,12 +364,19 @@ def room(mentor_id, mentee_id):
     pending = sorted([lesson for lesson in lessons if not lesson["finished"] and not lesson["cancelled_at"]],
                      key=lambda lesson: lesson["scheduled_at"])
     cancelled = [lesson for lesson in lessons if lesson["cancelled_at"]]
-    return render_template("room.html", pair=pair, summary=room_summary(mentor_id, mentee_id),
+    return render_template("room.html", pair=pair, moderation=moderation, summary=room_summary(mentor_id, mentee_id),
                            recordings=recordings, pending=pending, finished=finished, cancelled=cancelled,
                            missing_recording_reasons=MISSING_RECORDING_REASONS,
                            messages=message_rows(mentor_id, mentee_id), timezone=current_app.config["LESSON_TIMEZONE"],
                            max_upload_mb=current_app.config['MAX_RECORDING_BYTES'] // (1024 * 1024),
                            now_input=local_datetime(time.time()).strftime("%Y-%m-%dT%H:%M"))
+
+
+@learning.get('/coordinator/pairings/<int:mentor_id>/<int:mentee_id>')
+def coordinator_room(mentor_id, mentee_id):
+    if g.current_user.get('is_coordinator') is not True:
+        abort(403, description='This page is available to coordinators only.')
+    return room(mentor_id, mentee_id, moderation=True)
 
 
 def parse_lesson_form():
@@ -547,15 +564,40 @@ def messages(mentor_id, mentee_id):
             cursor = db.execute("INSERT INTO messages(mentor_id, mentee_id, sender_id, body, created_at) VALUES (?, ?, ?, ?, ?)",
                                 (mentor_id, mentee_id, g.current_user["id"], body, int(time.time())))
             id = cursor.lastrowid
+            enqueue_message(db, id, mentor_id, mentee_id, g.current_user['id'])
         return jsonify(messages=message_rows(mentor_id, mentee_id, after=id - 1))
     try:
         after = int(request.args["after"]) if "after" in request.args else None
         before = int(request.args["before"]) if "before" in request.args else None
-        if any(value is not None and (value < 0 or value > 2**63 - 1) for value in [after, before]):
+        deletions_after = int(request.args.get('deletions_after', '0'))
+        if any(value is not None and (value < 0 or value > 2**63 - 1) for value in [after, before, deletions_after]):
             raise ValueError()
     except ValueError:
         return jsonify(error="Invalid message cursor."), 400
-    return jsonify(messages=message_rows(mentor_id, mentee_id, after=after, before=before))
+    rows = message_rows(mentor_id, mentee_id, after=after, before=before)
+    deletions = get_db().execute('SELECT id, message_id FROM message_deletions '
+                                'WHERE mentor_id = ? AND mentee_id = ? AND id > ? ORDER BY id LIMIT 500',
+                                (mentor_id, mentee_id, deletions_after)).fetchall()
+    return jsonify(messages=rows, deleted_ids=[row['message_id'] for row in deletions],
+                   deletion_cursor=deletions[-1]['id'] if deletions else deletions_after)
+
+
+@learning.post('/coordinator/pairings/<int:mentor_id>/<int:mentee_id>/messages/<int:message_id>/delete')
+def delete_message(mentor_id, mentee_id, message_id):
+    if g.current_user.get('is_coordinator') is not True:
+        abort(403, description='Only coordinators can delete messages.')
+    room_access(mentor_id, mentee_id)
+    with get_db() as db:
+        db.execute('BEGIN IMMEDIATE')
+        row = db.execute('SELECT id FROM messages WHERE id = ? AND mentor_id = ? AND mentee_id = ?',
+                         (message_id, mentor_id, mentee_id)).fetchone()
+        if row is None:
+            return jsonify(error='This message no longer exists in this pairing.'), 404
+        db.execute('INSERT INTO message_deletions(message_id, mentor_id, mentee_id, deleted_by, deleted_at) '
+                   'VALUES (?, ?, ?, ?, ?)', (message_id, mentor_id, mentee_id, g.current_user['id'], int(time.time())))
+        db.execute('DELETE FROM messages WHERE id = ?', (message_id,))
+        db.execute('DELETE FROM push_outbox WHERE message_id = ?', (message_id,))
+    return jsonify(messages=[], deleted_ids=[message_id])
 
 
 @learning.get('/coordinator/lessons')

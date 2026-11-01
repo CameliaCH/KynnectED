@@ -32,6 +32,7 @@ class LearningTests(unittest.TestCase):
         for id, role, partners in [(1, "mentor", [3, 4]), (2, "mentor", [3]), (3, "mentee", [1, 2]),
                                    (4, "mentee", [1]), (99, "mentor", [])]:
             users.append({"id": id, "username": f"person{id}", "name": [f"Person{id}", "Example"],
+                          **({"centre": "Example Centre"} if role == "mentee" else {}),
                           "role": role, "partners": partners, "subjects": ["maths"], "is_coordinator": id == 99})
         Path(app.config["USERS_FILE"]).write_text(json.dumps(users))
         self.client = app.test_client()

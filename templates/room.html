@@ -3,13 +3,14 @@
 {% block body_class %}interior-page{% endblock %}
 {% block content %}
   <main class="page-hero">
-    <span class="workspace-label">Your pairing room</span>
+    <span class="workspace-label">{{ 'Coordinator pairing review' if moderation else 'Your pairing room' }}</span>
     <h1>{{ pair.mentor.name | first }} &amp; {{ pair.mentee.name | first }}</h1>
     <p class="tagline">{{ pair.mentor.name | join(' ') }} (mentor) &amp; {{ pair.mentee.name | join(' ') }} (mentee)</p>
   </main>
   <div class="page-body workspace-body room-body">
     <nav class="workspace-nav" aria-label="Pairing room sections">
       <a href="{{ url_for('dashboard') }}">Dashboard</a>
+      {% if moderation %}<a href="{{ url_for('pairings') }}">Coordinator pairings</a>{% endif %}
       <a href="#lessons">Lessons</a><a href="#recordings">Finished lessons</a><a href="#chat">Chat</a>
       {% if current_user.is_coordinator %}<a href="{{ url_for('learning.monitor') }}">Lesson monitoring</a>{% endif %}
     </nav>
@@ -85,7 +86,8 @@
     </section>
 
     <section id="chat" class="room-section workspace-panel" aria-labelledby="chat-heading"
-             data-messages-url="{{ url_for('learning.messages', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}" data-user-id="{{ current_user.id }}">
+             data-messages-url="{{ url_for('learning.messages', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}" data-user-id="{{ current_user.id }}"
+             {% if moderation %}data-can-delete="true" data-csrf="{{ csrf_token() }}" data-delete-messages-url="{{ url_for('learning.coordinator_room', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}/messages"{% endif %}>
       <h2 id="chat-heading">Pairing chat</h2>
       <p class="availability-help">A conversation between {{ pair.mentor.name | first }} and {{ pair.mentee.name | first }}. Coordinators can view it for support.</p>
       <button id="chat-older" type="button" class="room-link-button" {% if messages | length < 50 %}hidden{% endif %}>Load earlier messages</button>
@@ -93,6 +95,7 @@
         {% for message in messages %}
           <li data-message-id="{{ message.id }}" class="chat-message {{ 'chat-own' if message.sender_id == current_user.id else '' }}">
             <span class="chat-meta">{{ message.sender }} · {{ message.time }}</span><p>{{ message.body }}</p>
+            {% if moderation %}<button type="button" class="room-link-button chat-delete" data-delete-message="{{ message.id }}" aria-label="Delete message from {{ message.sender }}">Delete</button>{% endif %}
           </li>
         {% endfor %}
       </ol>

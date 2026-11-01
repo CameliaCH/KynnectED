@@ -33,6 +33,7 @@ class MentorApprovalTests(unittest.TestCase):
             {'id': 1, 'username': 'legacymentor', 'name': ['Existing', 'Mentor'], 'role': 'mentor',
              'partners': [], 'subjects': [], 'password': self.password_hash},
             {'id': 2, 'username': 'student', 'name': ['Student', 'Test'], 'role': 'mentee',
+             'centre': 'Example Centre',
              'partners': [], 'subjects': [], 'password': self.password_hash},
         ]))
         self.client = app.test_client()
@@ -203,6 +204,20 @@ class MentorApprovalTests(unittest.TestCase):
             self.assertEqual(self.signup(username=username, role='mentee', school=school).json, {'error': 'none'})
             user = next(user for user in read_accounts(self.accounts) if user['username'] == username)
             self.assertNotIn('school', user)
+
+    def test_mentee_centre_is_saved_and_shown_in_csv_and_table(self):
+        centre = 'Learning Centre, "Étoile"'
+        response = self.signup(role='mentee', centre=f'  {centre}  ')
+        self.assertEqual(response.json, {'error': 'none'})
+        self.assertEqual(self.applicant()['centre'], centre)
+        self.auth(99)
+        row = next(row for row in self.csv_rows('mentees') if row['username'] == 'applicant')
+        self.assertEqual(row['centre'], centre)
+        html = self.client.get('/export').get_data(as_text=True)
+        mentees, mentors = html.split('id="mentees-heading"')[1].split('id="mentors-heading"')
+        self.assertIn('<th scope="col">centre</th>', mentees)
+        self.assertIn('Learning Centre, &#34;Étoile&#34;', mentees)
+        self.assertNotIn('<th scope="col">centre</th>', mentors)
 
     def test_required_email_and_optional_whatsapp_are_saved_and_exported_for_both_roles(self):
         for role in ('mentor', 'mentee'):

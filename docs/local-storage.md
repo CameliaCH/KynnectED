@@ -37,7 +37,8 @@ recordings, row counts and SHA-256 checksums. A failed backup has an `INCOMPLETE
 marker and must not be used for restoration. These backups contain personal data
 and password hashes; keep them private and outside version control.
 
-Back up `.env`, the session signing key and the password reset counter database
+Back up `.env`, the session signing key, `instance/push-private.pem` (or the configured
+push private-key file), and the password reset counter database
 separately while the app is stopped. R2 objects remain in R2 and are not downloaded
 by this script. Preserve the existing bucket configuration and retention rules.
 

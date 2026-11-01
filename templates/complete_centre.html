@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Add your centre · KynnectED{% endblock %}
+{% block body_class %}interior-page{% endblock %}
+{% block content %}
+<main class="auth-layout wrap">
+  <section class="auth-card" aria-labelledby="centre-heading">
+    <h1 id="centre-heading">Which centre are you from?</h1>
+    <p>Please add your learning centre before continuing to KynnectED.</p>
+    {% if error %}<p id="centre-error" role="alert">{{ error }}</p>{% endif %}
+    <form class="account-form login-form" action="{{ url_for('complete_centre') }}" method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <label for="centre">Learning centre (required)</label>
+      <input id="centre" name="centre" type="text" maxlength="150" value="{{ centre }}" required aria-describedby="centre-help{% if error %} centre-error{% endif %}"{% if error %} aria-invalid="true"{% endif %}>
+      <p id="centre-help">If you do not attend a learning centre, enter “No centre”.</p>
+      <button class="button" type="submit">Save and continue</button>
+    </form>
+  </section>
+</main>
+{% endblock %}

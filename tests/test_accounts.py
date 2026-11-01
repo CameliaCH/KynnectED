@@ -33,6 +33,7 @@ class AccountTests(unittest.TestCase):
     def account(self, id, role):
         return {"id": id, "username": f"person{id}", "password": self.password_hash, "email": f"person{id}@example.com",
                 "name": [f"Person{id}", "Example"], "role": role, "subjects": ["maths"],
+                **({"centre": "Example Centre"} if role == "mentee" else {}),
                 "age": 18, "gender": "male", "gender_preferred": ["same"],
                 "age_preferred": ["same-age"], "partners": [], "availability": {"monday": ["09:00"]}}
 

@@ -73,6 +73,14 @@ class ExportTests(unittest.TestCase):
         self.assertIn("saturday", reader.fieldnames)
         self.assertEqual(list(reader), [])
 
+    def test_mentee_centre_column_handles_existing_accounts_and_empty_exports(self):
+        row = self.rows(self.get_with_users("/export/mentees.csv"))[0]
+        self.assertEqual(row["centre"], "")
+        response = self.get_with_users("/export/mentees.csv", [])
+        reader = csv.DictReader(io.StringIO(response.data.decode("utf-8-sig")))
+        self.assertIn("centre", reader.fieldnames)
+        self.assertEqual(list(reader), [])
+
     def test_page_displays_separate_groups_and_download_links(self):
         html = self.get_with_users("/export").get_data(as_text=True)
         mentees, mentors = html.split('id="mentees-heading"')[1].split('id="mentors-heading"')

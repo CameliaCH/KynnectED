@@ -48,7 +48,7 @@
                   <td>{{ pair.mentor.name | join(' ') }}<span class="participant-username">@{{ pair.mentor.username }}</span></td>
                   <td>{{ pair.mentee.name | join(' ') }}<span class="participant-username">@{{ pair.mentee.username }}</span></td>
                   <td>
-                    <a class="room-text-link" href="{{ url_for('learning.room', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}">Open room</a>
+                    <a class="room-text-link" href="{{ url_for('learning.coordinator_room', mentor_id=pair.mentor.id, mentee_id=pair.mentee.id) }}">Open room</a>
                     <form class="account-form" action="{{ url_for('save_pairing') }}" method="post">
                       <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                       <input type="hidden" name="action" value="unlink">

@@ -1376,6 +1376,12 @@ body {
   color: var(--ink-soft);
 }
 
+.chat-delete {
+  display: block;
+  margin-top: 8px;
+  font-size: 0.78rem;
+}
+
 @media (max-width: 640px) {
   .lesson-field-grid,
   .room-stats {

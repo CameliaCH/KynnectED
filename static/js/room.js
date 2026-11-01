@@ -27,13 +27,16 @@
   const status = document.getElementById('chat-status');
   const empty = document.getElementById('chat-empty');
   const seen = new Set([...list.children].map(item => Number(item.dataset.messageId)));
+  const deleted = new Set();
+  let deletionCursor = 0;
   let last = Math.max(0, ...seen);
+  let oldest = Math.min(Infinity, ...seen);
   let stopped = false;
   let pending = null;
   let sendError = '';
   list.scrollTop = list.scrollHeight;
 
-  async function fetchMessages(url, options) {
+  async function fetchMessages(url, options, action = 'load messages') {
     const response = await fetch(url, options);
     const data = await response.json().catch(() => null);
     if ([401, 403].includes(response.status) || response.redirected) {
@@ -42,11 +45,20 @@
       throw new Error(data?.error || 'Chat access has ended. Reload the page or log in again.');
     }
     if (!response.ok) {
-      const action = options?.method === 'POST' ? 'send your message' : 'load messages';
       throw new Error(data?.error || `Could not ${action} (error ${response.status}). Please try again.`);
     }
     if (!data || !Array.isArray(data.messages)) throw new Error('Could not read messages. Reload the page and try again.');
     return data;
+  }
+
+  function applyDeletions(data) {
+    for (const id of data.deleted_ids || []) {
+      deleted.add(id);
+      seen.delete(id);
+      list.querySelector(`[data-message-id="${id}"]`)?.remove();
+    }
+    deletionCursor = Math.max(deletionCursor, data.deletion_cursor || 0);
+    empty.hidden = seen.size > 0;
   }
 
   function add(messages, prepend = false) {
@@ -54,9 +66,10 @@
     const oldHeight = list.scrollHeight;
     const fragment = document.createDocumentFragment();
     for (const message of messages) {
-      if (seen.has(message.id)) continue;
-      seen.add(message.id);
       last = Math.max(last, message.id);
+      oldest = Math.min(oldest, message.id);
+      if (seen.has(message.id) || deleted.has(message.id)) continue;
+      seen.add(message.id);
       const item = document.createElement('li');
       item.dataset.messageId = message.id;
       item.className = 'chat-message' + (String(message.sender_id) === chat.dataset.userId ? ' chat-own' : '');
@@ -66,6 +79,15 @@
       const body = document.createElement('p');
       body.textContent = message.body;
       item.append(meta, body);
+      if (chat.dataset.canDelete === 'true') {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'room-link-button chat-delete';
+        button.dataset.deleteMessage = message.id;
+        button.setAttribute('aria-label', `Delete message from ${message.sender}`);
+        button.textContent = 'Delete';
+        item.append(button);
+      }
       fragment.append(item);
     }
     if (prepend) {
@@ -80,8 +102,8 @@
 
   function poll() {
     if (pending || stopped) return pending;
-    pending = fetchMessages(`${chat.dataset.messagesUrl}?after=${last}`)
-      .then(data => { add(data.messages); status.textContent = sendError; })
+    pending = fetchMessages(`${chat.dataset.messagesUrl}?after=${last}&deletions_after=${deletionCursor}`)
+      .then(data => { applyDeletions(data); add(data.messages); status.textContent = sendError; })
       .catch(error => { status.textContent = error.message; })
       .finally(() => { pending = null; });
     return pending;
@@ -90,8 +112,8 @@
   older.addEventListener('click', async () => {
     older.disabled = true;
     try {
-      const first = Math.min(...seen);
-      const data = await fetchMessages(`${chat.dataset.messagesUrl}?before=${first}`);
+      const data = await fetchMessages(`${chat.dataset.messagesUrl}?before=${oldest}&deletions_after=${deletionCursor}`);
+      applyDeletions(data);
       add(data.messages, true);
       older.hidden = data.messages.length < 50;
     } catch (error) { status.textContent = error.message; }
@@ -104,13 +126,27 @@
     if (button.disabled || stopped) return;
     button.disabled = true;
     try {
-      await fetchMessages(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) });
+      await fetchMessages(form.action, { method: 'POST', body: new URLSearchParams(new FormData(form)) }, 'send your message');
       sendError = '';
       status.textContent = '';
       document.getElementById('chat-message').value = '';
       await poll();
       list.scrollTop = list.scrollHeight;
     } catch (error) { sendError = error.message; status.textContent = sendError; }
+    finally { button.disabled = stopped; }
+  });
+  if (chat.dataset.canDelete === 'true') list.addEventListener('click', async event => {
+    const button = event.target.closest('[data-delete-message]');
+    if (!button || !list.contains(button) || button.disabled || stopped) return;
+    if (!window.confirm('Delete this message for everyone? This cannot be undone.')) return;
+    button.disabled = true;
+    try {
+      const data = await fetchMessages(`${chat.dataset.deleteMessagesUrl}/${button.dataset.deleteMessage}/delete`, {
+        method: 'POST', headers: { 'X-CSRF-Token': chat.dataset.csrf },
+      }, 'delete this message');
+      applyDeletions(data);
+      status.textContent = 'Message deleted.';
+    } catch (error) { status.textContent = error.message; }
     finally { button.disabled = stopped; }
   });
   setInterval(() => { if (!document.hidden) poll(); }, 5000);

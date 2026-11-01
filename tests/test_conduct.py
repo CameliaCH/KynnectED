@@ -156,7 +156,7 @@ class ConductTests(unittest.TestCase):
 
     def test_mentor_dashboard_has_dedicated_conduct_link(self):
         users = [{'id': 1, 'username': 'mentor', 'name': ['Mentor', 'Test'], 'role': 'mentor', 'subjects': [], 'partners': []},
-                 {'id': 2, 'username': 'mentee', 'name': ['Student', 'Test'], 'role': 'mentee', 'subjects': [], 'partners': []}]
+                 {'id': 2, 'username': 'mentee', 'name': ['Student', 'Test'], 'role': 'mentee', 'subjects': [], 'partners': [], 'centre': 'Example Centre'}]
         self.accounts.write_text(json.dumps(users))
         for user_id, should_show in ((1, True), (2, False)):
             with self.client.session_transaction() as session:
