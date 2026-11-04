@@ -262,6 +262,7 @@ dialog h2 { font-size: 2rem; }
 .pairing-card .card-link { color: var(--ink); font-size: .82rem; }
 .dashboard-layout { display: grid; grid-template-columns: 205px minmax(0,1fr); gap: 36px; }
 .dashboard-main { min-width: 0; }
+.dashboard-quick-links { margin-top: 32px; }
 .platform-sidebar { border-right: 1px solid var(--line); padding-right: 24px; }
 .platform-sidebar nav { display: grid; gap: 5px; }
 .platform-sidebar nav a { display: flex; gap: 12px; align-items: center; border-radius: 6px; padding: 12px 14px; text-decoration: none; font-size: .82rem; }

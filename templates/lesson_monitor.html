@@ -2,7 +2,7 @@
 {% block title %}Lesson Monitoring &middot; KynnectED{% endblock %}
 {% block body_class %}interior-page{% endblock %}
 {% block content %}
-  <main class="page-hero"><h1>Lessons &amp; recordings</h1><p class="tagline">Review learning progress, attendance, and session quality.</p></main>
+  <main class="page-hero"><h1>Lessons &amp; recordings</h1><p class="tagline">Watch session recordings, review lesson quality, and see each participant's completed learning hours and upcoming lessons.</p></main>
   <section class="page-body workspace-body export-body">
     {% include "coordinator_nav.html" %}
     <p class="room-notice">{{ pending_reviews }} recording{{ '' if pending_reviews == 1 else 's' }} awaiting quality review. Times shown in {{ timezone }} (UTC+8).</p>
