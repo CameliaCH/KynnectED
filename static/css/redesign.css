@@ -261,6 +261,7 @@ dialog h2 { font-size: 2rem; }
 .availability-help { font-size: .79rem; }
 .pairing-card .card-link { color: var(--ink); font-size: .82rem; }
 .dashboard-layout { display: grid; grid-template-columns: 205px minmax(0,1fr); gap: 36px; }
+.dashboard-main { min-width: 0; }
 .platform-sidebar { border-right: 1px solid var(--line); padding-right: 24px; }
 .platform-sidebar nav { display: grid; gap: 5px; }
 .platform-sidebar nav a { display: flex; gap: 12px; align-items: center; border-radius: 6px; padding: 12px 14px; text-decoration: none; font-size: .82rem; }
@@ -275,7 +276,15 @@ dialog h2 { font-size: 2rem; }
 .dashboard-heading h1 { font-size: 2.3rem; margin-bottom: 10px; }
 .dashboard-heading .eyebrow { margin-bottom: 12px; }
 .dashboard-heading p:last-child { font-size: .88rem; margin: 0; }
-.dashboard-heading .button { flex-shrink: 0; }
+.mentor-getting-started { margin-bottom: 30px; border-top: 4px solid var(--primary); }
+.mentor-getting-started h2 { margin-bottom: 10px; }
+.mentor-getting-started-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(3, auto); grid-auto-flow: column; gap: 24px 40px; padding-left: 24px; margin: 24px 0; }
+.mentor-getting-started-steps li { padding-left: 4px; font-size: .9rem; }
+.mentor-getting-started-steps li::marker { color: var(--ink); font-weight: 700; }
+.mentor-getting-started-steps strong { display: block; margin-bottom: 6px; }
+.mentor-getting-started-steps p { margin: 0; }
+.mentor-getting-started .mentor-getting-started-reminder { margin: 0; padding: 16px 20px; border-radius: 8px; background: var(--yellow-soft); color: var(--ink); }
+@media (max-width: 1000px) { .mentor-getting-started-steps { grid-template-columns: 1fr; grid-template-rows: none; grid-auto-flow: row; gap: 20px; } }
 .dashboard-layout .workspace-stats { grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; }
 .dashboard-layout .workspace-stat { padding: 20px 16px; }
 .dashboard-layout .workspace-stat strong { font-size: 2rem; }
@@ -284,11 +293,6 @@ dialog h2 { font-size: 2rem; }
 .empty-state { padding: 30px; border: 1px dashed #cdbca6; border-radius: 10px; }
 .empty-state h3 { margin-bottom: 8px; }
 .empty-state p { margin-bottom: 0; font-size: .87rem; }
-.pairing-shortcuts { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 20px; border-top: 1px solid var(--line); padding-top: 15px; }
-.pairing-shortcuts a { font-size: .75rem; font-weight: 600; }
-.dashboard-resources { display: flex; align-items: center; justify-content: space-between; gap: 24px; background: var(--cards-bg); margin-top: 35px; padding: 28px; border-radius: 10px; }
-.dashboard-resources h2 { margin-bottom: 10px; }
-.dashboard-resources p { margin-bottom: 0; font-size: .84rem; }
 .signup-body .signup-form { padding: 32px; border: 1px solid var(--line); border-radius: 12px; background: #fffdfa; }
 .signup-form #question { font-size: 1.1rem; color: var(--ink); }
 .signup-options > span { border-radius: 8px; }
@@ -471,7 +475,6 @@ dialog h2 { font-size: 2rem; }
   .platform-sidebar nav a { padding: 8px 10px; font-size: .75rem; }
   .profile-mini { display: none; }
   .dashboard-heading h1 { font-size: 2rem; }
-  .dashboard-resources { flex-direction: column; align-items: flex-start; }
   .page-hero, .interior-page .page-hero { padding-top: 38px; }
   .signup-body .signup-form { padding: 22px 18px; }
   .room-stats { grid-template-columns: 1fr; }
