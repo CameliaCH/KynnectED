@@ -13,7 +13,7 @@
         <tbody>{% for person in people %}<tr>
           {% set report_summary = recording_reports.get(person.user.id, {}) %}
           <td><span {% if report_summary.get('flagged') %}class="recording-flagged-name"{% endif %}>{{ person.user.name | join(' ') }}</span><span class="participant-username">@{{ person.user.username }}</span>{% if report_summary.get('flagged') %}<span class="recording-flag-label">Recording review needed</span>{% endif %}</td>
-          <td>{{ person.user.role | title }}</td><td>{{ '%.2f' | format(person.hours) }}</td><td>{{ person.completed }} sessions</td>
+          <td>{{ person.user.role | title }}</td><td>{{ person.hours | learning_hours }}</td><td>{{ person.completed }} sessions</td>
           <td>{% if person.user.role == 'mentor' %}{{ report_summary.get('count', 0) }}{% if report_summary.get('count') %}<details><summary>Reasons</summary>{% for reason, count in report_summary.reason_counts.items() %}{% if count %}<p>{{ missing_recording_reasons[reason] }}: {{ count }}</p>{% endif %}{% endfor %}</details>{% endif %}{% else %}—{% endif %}</td>
           <td>{% if person.upcoming %}<a class="room-text-link" href="{{ url_for('learning.room', mentor_id=person.upcoming[0].mentor_id, mentee_id=person.upcoming[0].mentee_id) }}">{{ person.upcoming[0].start_label }}</a>{% else %}Not scheduled{% endif %}</td>
         </tr>{% else %}<tr><td colspan="6">No participants yet.</td></tr>{% endfor %}</tbody>
@@ -25,6 +25,7 @@
       <article class="workspace-panel lesson-card" id="recording-{{ recording.id }}">
         <span class="workspace-label">{{ recording.review_label }}{% if not recording.active %} · Previous version{% endif %}</span>
         <h3>{{ recording.title }}</h3>
+        <p>{{ recording.original_filename }}</p>
         <p>{{ recording.session_label }} · {{ recording.mentor.name | join(' ') }} &amp; {{ recording.mentee.name | join(' ') }}</p>
         <p class="availability-help">Uploaded: {{ recording.upload_label }} · {{ 'Retention' if recording.safeguarding_flag else 'Expires' }}: {{ recording.expiry_label }}</p>
         {% if recording.available %}<a class="room-text-link" href="{{ url_for('recordings.watch', recording_id=recording.id) }}">Watch Recording</a>{% else %}<p class="availability-help">Recording expired</p>{% endif %}

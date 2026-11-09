@@ -1,0 +1,16 @@
+{% if lesson.cloud_recordings %}
+<ul class="session-recordings">
+  {% for video in lesson.cloud_recordings %}
+  <li>
+    {% if video.available %}<a class="room-text-link" href="{{ url_for('recordings.watch', recording_id=video.id) }}">Watch recording: {{ video.original_filename }}</a>
+    {% else %}<span class="availability-help">{{ video.original_filename }} · Recording expired</span>{% endif %}
+    <p class="availability-help">Uploaded: {{ video.upload_label }} · {{ 'Retention' if video.expiry_label == 'Retained' else 'Expires' }}: {{ video.expiry_label }}</p>
+    {% with review_summary=video %}{% include "review_summary.html" %}{% endwith %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}
+{% if lesson.recording_filename %}
+<a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id, legacy=1 if lesson.cloud_recordings else none) }}">Watch recording: {{ lesson.recording_original }}</a>
+<a class="room-text-link" href="{{ url_for('learning.recording', lesson_id=lesson.id, legacy=1 if lesson.cloud_recordings else none, download=1) }}">Download recording</a>
+{% endif %}

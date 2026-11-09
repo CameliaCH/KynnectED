@@ -125,8 +125,8 @@ class RecordingTests(unittest.TestCase):
         self.assertEqual(response.json['message'], SUCCESS_MESSAGE)
         return self.row(upload['upload_id'])
 
-    def saved(self):
-        response = self.start()
+    def saved(self, **data):
+        response = self.start(**data)
         self.assertEqual(response.status_code, 201)
         return self.complete(response.json)
 
@@ -164,7 +164,7 @@ class RecordingTests(unittest.TestCase):
     def test_session_consent_types_size_and_csrf_validated_before_permission(self):
         for changes in ({'confirmed': False}, {'confirmed': 'true'}, {'file_size': 0}, {'file_size': True},
                         {'file_size': 2 * 1024**3 + 1}, {'content_type': 'text/html'},
-                        {'filename': 'bad.html'}, {'filename': ''}, {'filename': 'x.mp4', 'content_type': 'video/webm'}):
+                        {'file_count': 0}, {'file_count': True}, {'file_count': '2'}, {'filename': 'bad.html'}, {'filename': ''}, {'filename': 'x.mp4', 'content_type': 'video/webm'}):
             self.assertEqual(self.start(**changes).status_code, 400)
         response = self.client.post(f'/api/lessons/{self.session["id"]}/recording-uploads', json={'confirmed': True})
         self.assertEqual(response.status_code, 400)
@@ -302,26 +302,29 @@ class RecordingTests(unittest.TestCase):
             self.assertEqual(self.r2.signed[-1][1]['Params']['Key'], row['r2_object_key'])
             self.assertEqual(self.client.get(f'/recordings/{row["id"]}').status_code, 200)
 
-    def test_admin_role_prevents_all_upload_actions_even_for_assigned_mentor(self):
-        upload = self.start().json
+    def test_coordinator_can_upload_only_as_assigned_approved_mentor(self):
         with edit_accounts(app.config['USERS_FILE']) as users:
             users[0]['is_coordinator'] = True
-        for user in (1, 99):
-            self.auth(user)
-            self.assertEqual(self.start().status_code, 403)
-            self.assertEqual(self.post(upload['part_url'], part_number=1).status_code, 403)
-            self.assertEqual(self.post(upload['complete_url']).status_code, 403)
-            self.assertEqual(self.post(upload['abort_url']).status_code, 403)
-            room = self.client.get('/pairings/1/3').get_data(as_text=True)
-            if user == 99:
-                self.assertIn('Read-only admin view.', room)
-            else:
-                self.assertNotIn('Read-only admin view.', room)
-                self.assertIn('id="chat-form"', room)
-            self.assertNotIn('data-recording-version', room)
-        self.assertEqual(self.upload_row(upload['upload_id'])['status'], 'pending')
-        self.assertIsNone(self.lesson(self.session['id'])['recorded_at'])
-        self.assertEqual(self.r2.signed, [])
+        upload = self.start(file_count=2).json
+        self.assertEqual(self.post(upload['part_url'], part_number=1).status_code, 200)
+        for path in ('/pairings/1/3', '/dashboard'):
+            self.assertIn('data-recording-version', self.client.get(path).get_data(as_text=True))
+        self.auth(99)
+        for path in (upload['part_url'], upload['complete_url'], upload['abort_url']):
+            self.assertEqual(self.post(path, part_number=1).status_code, 403)
+        self.assertEqual(self.start().status_code, 403)
+        self.assertNotIn('data-recording-version', self.client.get('/pairings/1/3').get_data(as_text=True))
+        self.auth(1)
+        self.complete(upload, seconds=1800)
+        second = self.start(append=True, recording_version=upload['upload_id']).json
+        self.assertEqual(self.post(second['abort_url']).status_code, 200)
+        second = self.start(recording_version=upload['upload_id']).json
+        self.complete(second, seconds=600)
+        self.assertEqual(self.lesson(self.session['id'])['recording_seconds'], 2400)
+        self.assertEqual(self.start(recording_version=second['upload_id']).status_code, 409)
+        with edit_accounts(app.config['USERS_FILE']) as users:
+            users[0]['mentor_approval_status'] = 'pending'
+        self.assertEqual(self.start(append=True, recording_version=second['upload_id']).status_code, 403)
 
     def test_expired_and_lifecycle_missing_objects_fail_without_losing_history(self):
         row = self.saved()
@@ -432,9 +435,9 @@ class RecordingTests(unittest.TestCase):
         self.auth(3)
         self.assertNotIn('PRIVATE concern', self.client.get(f'/recordings/{row["id"]}').get_data(as_text=True))
 
-    def test_review_during_replacement_prevents_overwriting_the_final_review(self):
-        row = self.saved()
-        upload = self.start(replace=True, recording_version=row['id']).json
+    def test_external_review_during_batch_prevents_overwriting_the_final_review(self):
+        row = self.saved(file_count=2)
+        upload = self.start(append=True, recording_version=row['id']).json
         self.put_parts(upload)
         def review_during_probe(_):
             with app.app_context(), get_db() as db:
@@ -495,26 +498,169 @@ class RecordingTests(unittest.TestCase):
             self.assertEqual(self.flag(row).status_code, 503)
         self.assertEqual(self.row(row['id']), row)
 
-    def test_deliberate_replacement_updates_hours_once_and_retains_flagged_history(self):
+    def test_saved_lesson_rejects_further_uploads_and_changes_and_keeps_flagged_video(self):
         row = self.saved()
         self.flag(row)
         self.auth(1)
-        self.assertEqual(self.start().status_code, 409)
-        self.assertEqual(self.start(replace=True, recording_version='old').status_code, 409)
-        upload = self.start(replace=True, recording_version=row['id']).json
+        lesson = self.lesson(self.session['id'])
+        for changes in ({}, {'append': True}, {'replace': True}, {'file_count': 10}):
+            self.assertEqual(self.start(recording_version=row['id'], **changes).status_code, 409)
+        self.assertEqual(self.client.post(f'/lessons/{self.session["id"]}/edit', data=self.fixture.form()).status_code, 409)
+        self.assertEqual(self.client.post(f'/lessons/{self.session["id"]}/cancel', data={'_csrf_token': 'test-csrf'}).status_code, 409)
+        self.assertEqual(self.lesson(self.session['id']), lesson)
+        self.assertTrue(self.row(row['id'])['active'])
+        self.assertTrue(self.row(row['id'])['safeguarding_flag'])
+        self.assertEqual(self.client.get(f'/api/recordings/{row["id"]}/playback').status_code, 200)
+        for path in ('/dashboard', '/pairings/1/3'):
+            html = self.client.get(path).get_data(as_text=True)
+            self.assertIn('Lesson saved.', html)
+            self.assertNotIn('data-recording-version', html)
+
+    def test_multiple_videos_remain_playable_and_total_hours_once(self):
+        first = self.saved(file_count=2)
+        upload = self.start(filename='part-two.mp4', append=True, recording_version=first['id']).json
         second = self.complete(upload, seconds=1800)
-        with app.app_context():
-            self.assertEqual((activity_for_user(1)['hours'], activity_for_user(3)['completed']), (0.5, 1))
-        old = self.row(row['id'])
-        self.assertFalse(old['active'])
-        self.assertTrue(old['safeguarding_flag'])
-        self.assertIn(old['r2_object_key'], self.r2.objects)
-        self.assertEqual(second['review_status'], 'awaiting_review')
-        self.assertIsNone(self.lesson(self.session['id'])['reviewed_at'])
-        self.assertEqual(self.client.get(f'/api/recordings/{old["id"]}/playback').status_code, 403)
+        self.assertEqual(self.post(upload['complete_url']).status_code, 200)
+        self.assertTrue(self.row(first['id'])['active'])
+        self.assertTrue(second['active'])
+        for user in (1, 3):
+            self.auth(user)
+            with app.app_context():
+                activity = activity_for_user(user)
+            self.assertEqual((activity['hours'], activity['completed']), (1.5, 1))
+            for row in (first, second):
+                self.assertEqual(self.client.get(f'/api/recordings/{row["id"]}/playback').status_code, 200)
+            for path in ('/dashboard', '/pairings/1/3', f'/recordings/{first["id"]}'):
+                html = self.client.get(path).get_data(as_text=True)
+                for row in (first, second):
+                    self.assertIn(f'/recordings/{row["id"]}', html)
+                    self.assertIn(row['original_filename'], html)
+        with app.app_context(), get_db() as db:
+            db.execute('UPDATE recordings SET expires_at = 0 WHERE id = ?', (second['id'],))
+        html = self.client.get('/dashboard').get_data(as_text=True)
+        self.assertIn(f'href="/recordings/{first["id"]}"', html)
+        self.assertNotIn(f'href="/recordings/{second["id"]}"', html)
+        html = self.client.get(f'/lessons/{self.session["id"]}/recording').get_data(as_text=True)
+        self.assertIn(f'data-playback-url="/api/recordings/{first["id"]}/playback"', html)
+
+    def test_short_video_hours_persist_and_completion_returns_current_totals(self):
+        upload = self.start(file_count=2).json
+        self.complete(upload, seconds=17.383333)
+        progress = self.post(upload['complete_url']).json['progress']
+        self.assertEqual(progress['hours'], '0.0048')
+        self.assertEqual(progress['pair_hours'], '0.0048')
+        self.assertEqual(progress['pair_duration'], '17.4 sec')
+        self.assertEqual(progress['completed'], 1)
+        self.assertEqual(progress['pair_completed'], 1)
+        self.assertEqual(progress['upcoming'], 0)
+        self.assertEqual(progress['user_id'], 1)
+        self.assertEqual(progress['pair_key'], '1-3')
+        self.assertEqual(progress['lesson_id'], self.session['id'])
+        self.assertEqual(progress['lesson_duration'], '17.4 sec')
+        room = self.client.get('/pairings/1/3').get_data(as_text=True)
+        self.assertIn('<span data-learning-duration>17.4 sec</span> recorded', room)
+        self.assertIn('multiple required', room)
+        for user in (1, 3, 99):
+            self.auth(user)
+            for path in (('/coordinator/lessons',) if user == 99 else ('/dashboard', '/pairings/1/3')):
+                self.assertIn('0.0048', self.client.get(path).get_data(as_text=True))
+        self.auth(1)
+        added = self.start(append=True, recording_version=upload['upload_id']).json
+        self.complete(added, seconds=17.383333)
+        # Retrying the earlier completion returns current totals without adding time twice.
+        progress = self.post(upload['complete_url']).json['progress']
+        self.assertEqual(progress['hours'], '0.0097')
+        self.assertEqual(progress['completed'], 1)
+        self.assertAlmostEqual(self.lesson(self.session['id'])['recording_seconds'], 34.766666)
+        self.assertTrue(self.post(added['complete_url']).json['lesson_saved'])
+        self.assertEqual(self.start(replace=True, recording_version=added['upload_id']).status_code, 409)
+        self.assertEqual(self.post(added['complete_url']).json['progress']['hours'], '0.0097')
+
+    def test_failed_or_cancelled_addition_preserves_saved_videos_and_hours(self):
+        first = self.saved(file_count=2)
+        self.assertEqual(self.start(append=True, recording_version='stale').status_code, 409)
+        self.assertEqual(self.start(append=True, replace=True, recording_version=first['id']).status_code, 409)
+        upload = self.start(append=True, recording_version=first['id']).json
+        self.put_parts(upload)
+        with patch('recordings.probe_cloud_video', side_effect=BadRequest('Invalid video')):
+            self.assertEqual(self.post(upload['complete_url']).status_code, 400)
+        self.assertEqual(self.post(upload['abort_url']).status_code, 200)
+        self.assertEqual(self.row(first['id']), first)
+        self.assertEqual(self.lesson(self.session['id'])['recording_seconds'], 3600)
+        retry = self.start(recording_version=first['id']).json
+        self.complete(retry, seconds=600)
+        self.assertTrue(self.post(retry['complete_url']).json['lesson_saved'])
+
+    def test_batch_size_is_fixed_after_first_save_and_locks_after_last_video(self):
+        first = self.saved(file_count=3)
+        for count in (1, 2, 4):
+            self.assertEqual(self.start(file_count=count, recording_version=first['id']).status_code, 409)
+        self.assertEqual(self.start(replace=True, recording_version=first['id']).status_code, 409)
+        second_upload = self.start(recording_version=first['id']).json
+        second = self.complete(second_upload, seconds=1800)
+        response = self.post(second_upload['complete_url']).json
+        self.assertFalse(response['lesson_saved'])
+        self.assertEqual(response['remaining_files'], 1)
+        third_upload = self.start(recording_version=second['id']).json
+        third = self.complete(third_upload, seconds=600)
+        response = self.post(third_upload['complete_url']).json
+        self.assertTrue(response['lesson_saved'])
+        self.assertEqual(response['remaining_files'], 0)
+        self.assertEqual(self.lesson(self.session['id'])['recording_seconds'], 6000)
+        self.assertEqual(self.start(recording_version=third['id'], file_count=4).status_code, 409)
+        for row in (first, second, third):
+            self.assertTrue(self.row(row['id'])['active'])
+
+    def test_reviews_wait_for_the_complete_batch_and_each_video_needs_review(self):
+        first = self.saved(file_count=2)
         self.auth(99)
-        self.assertEqual(self.client.get(f'/api/recordings/{old["id"]}/playback').status_code, 200)
-        self.assertIn('Previous version', self.client.get('/coordinator/lessons').get_data(as_text=True))
+        self.assertEqual(self.client.post(f'/recordings/{first["id"]}/review', data={
+            '_csrf_token': 'test-csrf', 'review_note': 'Too soon'}).status_code, 409)
+        self.auth(1)
+        second = self.complete(self.start(recording_version=first['id']).json)
+        self.auth(99)
+        self.assertIn('2 recordings awaiting quality review', self.client.get('/coordinator/lessons').get_data(as_text=True))
+        self.assertEqual(self.client.post(f'/recordings/{first["id"]}/review', data={
+            '_csrf_token': 'test-csrf', 'review_note': 'First video reviewed'}).status_code, 302)
+        self.assertIsNone(self.lesson(self.session['id'])['reviewed_at'])
+        self.assertIn('1 recording awaiting quality review', self.client.get('/coordinator/lessons').get_data(as_text=True))
+        self.auth(1)
+        self.assertEqual(self.start(append=True, recording_version=second['id']).status_code, 409)
+        html = self.client.get('/dashboard').get_data(as_text=True)
+        self.assertIn('First video reviewed', html)
+        self.assertNotIn('data-recording-version', html)
+        self.auth(99)
+        self.assertEqual(self.client.post(f'/recordings/{second["id"]}/review', data={
+            '_csrf_token': 'test-csrf', 'review_note': 'Second video reviewed'}).status_code, 302)
+        self.assertIsNotNone(self.lesson(self.session['id'])['reviewed_at'])
+        self.auth(3)
+        html = self.client.get('/pairings/1/3').get_data(as_text=True)
+        self.assertIn('First video reviewed', html)
+        self.assertIn('Second video reviewed', html)
+
+    def test_legacy_video_is_locked_and_keeps_its_duration(self):
+        self.fixture.seed_legacy_recording(self.session['id'])
+        legacy = self.lesson(self.session['id'])
+        self.assertEqual(self.start(append=True, recording_version=legacy['recording_filename']).status_code, 409)
+        self.assertEqual(self.lesson(self.session['id'])['recording_seconds'], 3600)
+        response = self.client.get(f'/lessons/{self.session["id"]}/recording?legacy=1')
+        self.assertEqual(response.data, b'test-video-content')
+        response.close()
+        self.assertIn('Lesson saved.', self.client.get('/pairings/1/3').get_data(as_text=True))
+
+    def test_existing_single_video_schema_upgrades_without_losing_recordings(self):
+        from learning import SCHEMA
+        first = self.saved()
+        with app.app_context(), get_db() as db:
+            db.execute('DROP TABLE recording_uploads')
+            db.execute('ALTER TABLE lessons DROP COLUMN recording_batch_size')
+            db.execute('ALTER TABLE lessons DROP COLUMN recordings_locked_at')
+            db.execute('CREATE UNIQUE INDEX recordings_active ON recordings(session_id) WHERE active = 1')
+            db.executescript(SCHEMA.replace('    append_recording INTEGER NOT NULL DEFAULT 0,\n', ''))
+        self.assertEqual(self.start(append=True, recording_version=first['id']).status_code, 409)
+        self.assertEqual(self.row(first['id']), first)
+        self.assertEqual(self.lesson(self.session['id'])['recording_seconds'], 3600)
+        self.assertIn('Lesson saved.', self.client.get('/pairings/1/3').get_data(as_text=True))
 
     def test_cancel_restart_expiry_and_inactive_pairing(self):
         upload = self.start().json
@@ -571,10 +717,9 @@ class RecordingTests(unittest.TestCase):
         self.auth(1)
         legacy = self.lesson(self.session['id'])
         replacement = self.start(replace=True, recording_version=legacy['recording_filename'])
-        self.assertEqual(replacement.status_code, 201)
-        self.complete(replacement.json, seconds=900)
+        self.assertEqual(replacement.status_code, 409)
         with app.app_context():
-            self.assertEqual(activity_for_user(3)['hours'], 0.25)
+            self.assertEqual(activity_for_user(3)['hours'], 1)
 
     def test_real_sdk_presigns_content_length_and_only_cloudflare_endpoint(self):
         client = boto3.client('s3', endpoint_url='https://test-account.r2.cloudflarestorage.com',

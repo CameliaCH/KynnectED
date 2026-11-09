@@ -3,11 +3,12 @@
   <summary>{{ recording.review_label }}</summary>
   {% if recording.reviewed_at %}
   {% with review_summary=recording %}{% include "review_summary.html" %}{% endwith %}
-  {% else %}
+  {% elif recording.can_review %}
   <form class="account-form lesson-form" action="{{ url_for('recordings.mark_reviewed', recording_id=recording.id) }}" method="post">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
     {% with review_id=recording.id %}{% include "review_fields.html" %}{% endwith %}
   </form>
+  {% else %}<p class="availability-help">Waiting for the mentor to finish uploading all selected videos before review.</p>
   {% endif %}
   {% if not review.safeguarding_flag and recording.available %}
   <details class="safeguarding-action">

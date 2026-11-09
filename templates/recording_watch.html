@@ -6,6 +6,7 @@
   <a class="room-text-link" href="{{ url_for('learning.room', mentor_id=lesson.mentor_id, mentee_id=lesson.mentee_id, _anchor='recordings') }}">← Finished lessons</a>
   <article class="workspace-panel lesson-card">
     <span class="workspace-label">Session recording</span><h1>{{ lesson.title }}</h1>
+    <p>{{ recording.original_filename }}</p>
     <p>{{ lesson.start_label }} · {{ lesson.mentor.name | join(' ') }} &amp; {{ lesson.mentee.name | join(' ') }}</p>
     <p class="availability-help">Uploaded: {{ recording.upload_label }} · {{ 'Retention' if recording.expiry_label == 'Retained' else 'Expires' }}: {{ recording.expiry_label }}</p>
     {% if recording.available %}
@@ -20,6 +21,10 @@
     <a class="room-text-link" href="{{ url_for('learning.monitor', _anchor='recording-' ~ recording.id) }}">Review in admin dashboard</a>
     {% endif %}
   </article>
+  <section class="workspace-panel" aria-label="Session recordings">
+    <h2>Session recordings</h2>
+    {% include "recording_list.html" %}
+  </section>
 </main>
 <script src="{{ url_for('static', filename='js/recordings.js') }}"></script>
 {% endblock %}
