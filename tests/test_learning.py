@@ -114,11 +114,30 @@ class LearningTests(unittest.TestCase):
     def test_conflicts_across_many_to_many_pairings_and_adjacent_slots(self):
         lesson = self.create()
         data = self.form(scheduled_at=datetime.fromtimestamp(lesson["scheduled_at"], ZoneInfo("Asia/Kuala_Lumpur")).strftime("%Y-%m-%dT%H:%M"))
-        self.assertEqual(self.client.post('/pairings/1/4/lessons', data=data).status_code, 409)
+        response = self.client.post('/pairings/1/4/lessons', data=data)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('You already have a lesson scheduled', response.get_data(as_text=True))
+        self.assertIn('Asia/Kuala_Lumpur', response.get_data(as_text=True))
+        self.assertIn(datetime.fromtimestamp(lesson['scheduled_at'], ZoneInfo('Asia/Kuala_Lumpur')).strftime('%d %b %Y, %I:%M %p'), response.get_data(as_text=True))
         self.auth(2)
-        self.assertEqual(self.client.post('/pairings/2/3/lessons', data=data).status_code, 409)
+        response = self.client.post('/pairings/2/3/lessons', data=data)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('The mentee already has a lesson scheduled', response.get_data(as_text=True))
         data["scheduled_at"] = datetime.fromtimestamp(lesson["scheduled_at"] + 3600, ZoneInfo("Asia/Kuala_Lumpur")).strftime("%Y-%m-%dT%H:%M")
         self.assertEqual(self.client.post('/pairings/2/3/lessons', data=data).status_code, 302)
+
+    def test_recorded_lesson_conflict_uses_planned_time_and_cancelled_lessons_do_not_block(self):
+        lesson = self.create(past=True)
+        self.seed_legacy_recording(lesson['id'], seconds=17)
+        start = datetime.fromtimestamp(lesson['scheduled_at'] + 30 * 60, ZoneInfo('Asia/Kuala_Lumpur'))
+        data = self.form(scheduled_at=start.strftime('%Y-%m-%dT%H:%M'))
+        response = self.client.post('/pairings/1/4/lessons', data=data)
+        self.assertEqual(response.status_code, 409)
+        self.assertIn('scheduled time still counts even though its recording has been uploaded', response.get_data(as_text=True))
+        future = self.create()
+        self.client.post(f'/lessons/{future["id"]}/cancel', data={'_csrf_token': 'test-csrf'})
+        data = self.form(scheduled_at=datetime.fromtimestamp(future['scheduled_at'], ZoneInfo('Asia/Kuala_Lumpur')).strftime('%Y-%m-%dT%H:%M'))
+        self.assertEqual(self.client.post('/pairings/1/4/lessons', data=data).status_code, 302)
 
     def test_invalid_schedule_and_zoom_links(self):
         for url in ["javascript:alert(1)", "https://zoom.us.evil.example/j/1", "https://zoom.us@evil.example/j/1", "http://zoom.us/j/1"]:
@@ -229,7 +248,7 @@ class LearningTests(unittest.TestCase):
                     self.assertEqual(self.client.post(f'/lessons/{lesson["id"]}/cancel', data={'_csrf_token': 'test-csrf'}).status_code, expected)
                     self.assertEqual(self.lesson(lesson['id']), lesson)
 
-    def test_admin_lesson_management_stays_read_only_but_participants_can_chat(self):
+    def test_admins_other_than_assigned_mentor_stay_read_only_but_participants_can_chat(self):
         future = self.create()
         past = self.create(past=True)
         recorded = self.create(title='Recorded lesson', scheduled_at=(
@@ -241,7 +260,7 @@ class LearningTests(unittest.TestCase):
             for user in users:
                 if user['id'] in (1, 3):
                     user['is_coordinator'] = True
-        for user_id in (99, 1, 3):
+        for user_id in (99, 3):
             with self.subTest(admin=user_id):
                 self.auth(user_id)
                 response = self.client.get('/pairings/1/3')
@@ -285,8 +304,36 @@ class LearningTests(unittest.TestCase):
         with app.app_context():
             db = get_db()
             self.assertEqual(db.execute('SELECT COUNT(*) FROM lessons').fetchone()[0], 3)
-            self.assertEqual([row['sender_id'] for row in db.execute('SELECT sender_id FROM messages ORDER BY id')], [1, 1, 3])
+            self.assertEqual([row['sender_id'] for row in db.execute('SELECT sender_id FROM messages ORDER BY id')], [1, 3])
             self.assertEqual(db.execute('SELECT COUNT(*) FROM missing_recording_reports').fetchone()[0], 0)
+
+    def test_coordinator_mentor_can_manage_own_lessons_only(self):
+        with edit_accounts(app.config['USERS_FILE']) as users:
+            users[0]['is_coordinator'] = True
+        room = self.client.get('/pairings/1/3').get_data(as_text=True)
+        self.assertIn('Add a lesson', room)
+        future = self.create()
+        self.assertEqual(self.client.post(f'/lessons/{future["id"]}/edit',
+                         data=self.form(title='Updated by assigned mentor')).status_code, 302)
+        self.assertEqual(self.lesson(future['id'])['title'], 'Updated by assigned mentor')
+        self.assertEqual(self.client.post(f'/lessons/{future["id"]}/cancel',
+                         data={'_csrf_token': 'test-csrf'}).status_code, 302)
+        past = self.create(past=True)
+        self.assertIn('Don’t have a recording?', self.client.get('/pairings/1/3').get_data(as_text=True))
+        self.assertEqual(self.report(past['id']).status_code, 302)
+        self.auth(2)
+        other = self.create(mentor=2, mentee=3)
+        self.auth(1)
+        self.assertNotIn('Add a lesson', self.client.get('/pairings/2/3').get_data(as_text=True))
+        self.assertEqual(self.client.post('/pairings/2/3/lessons', data=self.form()).status_code, 403)
+        self.assertEqual(self.client.post(f'/lessons/{other["id"]}/edit', data=self.form()).status_code, 403)
+        self.assertEqual(self.client.post(f'/lessons/{other["id"]}/cancel',
+                         data={'_csrf_token': 'test-csrf'}).status_code, 403)
+        self.assertEqual(self.report(other['id']).status_code, 403)
+        with edit_accounts(app.config['USERS_FILE']) as users:
+            users[0]['partners'].remove(3)
+        self.assertNotIn('Add a lesson', self.client.get('/pairings/1/3').get_data(as_text=True))
+        self.assertEqual(self.client.post('/pairings/1/3/lessons', data=self.form()).status_code, 403)
 
     def test_coordinator_participants_cannot_chat_after_unlink_or_approval_revocation(self):
         path = '/pairings/1/3/messages'

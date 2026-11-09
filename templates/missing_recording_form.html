@@ -1,7 +1,7 @@
 {% if current_user.id == lesson.mentor_id or current_user.is_coordinator %}
   {% if lesson.missing_recording_reason %}
   <p class="availability-help">Explanation submitted: {{ lesson.missing_recording_label }}{% if lesson.missing_recording_note %} — {{ lesson.missing_recording_note }}{% endif %}.</p>
-  {% elif not lesson.recorded_at and pair.active and not current_user.is_coordinator and current_user.id == lesson.mentor_id %}
+  {% elif not lesson.recorded_at and pair.active and current_user.id == lesson.mentor_id %}
   <details class="lesson-tools missing-recording-details" id="missing-recording-{{ lesson.id }}">
     <summary>Don’t have a recording?</summary>
     <form class="account-form lesson-form missing-recording-form" action="{{ url_for('learning.report_missing_recording', lesson_id=lesson.id) }}" method="post">

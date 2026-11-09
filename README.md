@@ -2,6 +2,10 @@
 
 Install dependencies and configure recording storage using the commands below, then visit http://localhost:5001.
 
+Once dependencies are installed, start the app with `.venv/bin/python app.py`, or
+use VS Code's **KynnectED (project environment)** run configuration. This uses the
+project's installed packages, including `boto3` for recording uploads.
+
 Accounts use `users.json`; lessons, chat, materials and recording metadata use
 `instance/learning.sqlite3`. Password reset counters use `users.reset-limits.sqlite3`.
 Recordings continue to use the existing private Cloudflare R2 storage.
@@ -298,21 +302,33 @@ The token and session controls follow the
 Click a pairing on your dashboard to open its private room. Coordinators can
 also open rooms from **Pairings** or **Lessons & recordings**.
 
-- Mentors can add, edit, and cancel their lessons. Admins have read-only lesson
-  management access, including accounts that also have the mentor role or are paired.
-  Admins cannot schedule, edit, cancel, upload recordings, submit missing-recording
-  explanations. Coordinators who are the assigned mentor or mentee can send chat
+- Approved mentors can schedule, edit, cancel, upload recordings, and submit
+  missing-recording explanations in their active pairings, including mentors
+  who also have coordinator access. Coordinators have read-only lesson management
+  access in other pairings. Coordinators who are the assigned mentor or mentee can send chat
   messages in their active pairings; other rooms remain read-only. Dates use
   `Asia/Kuala_Lumpur` (UTC+8). Paste an existing HTTPS Zoom meeting link;
   the app does not create Zoom meetings or start recording automatically.
 - Record the session in Zoom, then upload MP4/MOV (H.264) or WebM (VP8/VP9/AV1)
-  to that lesson. Past lessons can also be added. New uploads go directly from
-  the browser to R2, up to 2 GiB (shown as 2 GB). The server requires **FFmpeg's
+  to that lesson. Each use of **Choose Files** adds videos to the selection list;
+  duplicate selections are skipped. Remove unwanted selections before uploading.
+  The videos upload one at a time, with progress for each file. Past lessons can
+  also be added. New uploads go directly from
+  the browser to R2, up to 2 GiB (shown as 2 GB) per video. The server requires **FFmpeg's
   `ffprobe`** (`brew install ffmpeg` on macOS) to validate video metadata remotely.
   Only the approved mentor assigned to the session can upload.
 - A successful upload marks both participants present. Completed learning
-  hours use the video's duration. Replacing a recording updates that same
-  attendance entry and resets its quality review; it does not count twice.
+  hours use the combined duration of the session’s videos. Select all videos for
+  a lesson before uploading. The server fixes the batch size when the first video
+  is saved, and locks the lesson when the last selected video is saved. Further
+  uploads, replacements, lesson edits and cancellation are then rejected, including
+  direct API requests. Previously uploaded lessons are also locked. Attendance
+  still counts once. If a file fails or is cancelled, saved videos remain available;
+  retry only the remaining files. After reloading, select the remaining number of
+  videos shown on the form. Saved videos cannot be replaced during a partial batch.
+  Saved hours and attendance counters update after each successful upload.
+  Totals below 0.01 hours show extra decimal places so short recordings remain
+  visible, and lesson durations below one minute are shown in seconds.
 - Both participants can watch available recordings and exchange messages
   inside their room. Chat is saved and checks for new messages automatically.
   Coordinators can read chat for support and watch recordings. Quality reviews
@@ -322,8 +338,9 @@ also open rooms from **Pairings** or **Lessons & recordings**.
   The final reviewer name, date, and comments are visible to the paired mentor
   and student. Marking reviewed is permanent: the form disappears and the server
   rejects later changes. The selected reviewer's name is saved with the review;
-  the admin who submitted it is also recorded separately. A recording with a
-  final review cannot be replaced, including by an upload already in progress.
+  the admin who submitted it is also recorded separately. Reviews can be finalised
+  once the whole batch is saved. Each video is reviewed separately; the session is
+  fully reviewed once all its active cloud videos have final reviews.
   Safeguarding notes remain admin-only; flagging never changes the final review.
 - Unlinking a pair removes participants' room access and prevents new activity.
   Completed hours remain in their totals; coordinators retain access to the
@@ -453,13 +470,16 @@ Provider references: [bucket creation](https://developers.cloudflare.com/r2/buck
 - Completion is idempotent: a lost response can be retried without a second
   attendance entry. Starting again cancels an unfinished upload for that session.
   Upload permissions last at most 24 hours. Closing a tab loses browser progress;
-  reopening starts again, while R2's multipart lifecycle cleans abandoned parts.
+  reopening lets the mentor retry the remaining files in the same batch, while
+  R2's multipart lifecycle cleans abandoned parts.
 - `recordings` and `recording_uploads` are **additive SQLite tables**, created on
   the next database connection. **No migration command is required.** Existing
   lesson/chat/material/report tables, JSON accounts and attendance remain intact.
   Records store object keys, filenames, sizes, upload/expiry times, review status,
   reviewer metadata and safeguarding metadata. No permanent R2 URLs are stored.
-  Upload state also records consent time and the version being replaced.
+  Upload state records consent time and the latest recording version. Lessons
+  record the selected batch size and when uploads were locked. Existing databases
+  upgrade automatically, preserving saved recordings and hours.
 - Uploaded videos use `sessions/{session_id}/{random_uuid}.{extension}`.
   Expiry is R2's upload-completion timestamp plus seven days. Dashboards retain
   session history/hours after expiry and stop offering playback. R2 performs
@@ -480,9 +500,8 @@ Provider references: [bucket creation](https://developers.cloudflare.com/r2/buck
   the retained copy, and only then saves the flag, coordinator identity and time.
   A failed copy cannot falsely mark a video retained. Flag before normal expiry.
 - Flagged videos have no automatic expiry. The original `sessions/` copy can
-  expire normally. Replacements require explicit confirmation/version matching,
-  reset quality review, and update the same session's hours. Older flagged
-  versions remain in the coordinator review list; the application never
+  expire normally. Saved recordings cannot be replaced. Older flagged versions
+  from previous app versions remain in the coordinator review list; the application never
   automatically deletes a `flagged/` object.
 - New recordings require R2 configuration. Existing pages and legacy recordings
   still work without it; a new upload reports that storage needs configuration.
@@ -495,14 +514,17 @@ With the virtual environment active:
 ```sh
 python3 -m unittest discover -s tests -v
 python3 -m unittest discover -s tests -p 'test_recordings.py' -v
+node tests/recordings.test.js
 ```
+
+The JavaScript upload checks can also run with macOS JavaScriptCore's `jsc`.
 
 Automated tests use temporary JSON/SQLite stores and a simulated R2 client,
 plus actual SDK signing and FFmpeg validation. They do not need live credentials
 or modify real registrations. They cover assignment/approval, CSRF, required
 consent, type/size checks, part permissions, incomplete/invalid uploads,
 idempotent completion, attendance, playback authorization, expiry/missing objects,
-shared final reviews, private safeguarding notes, flag copy failures, retained replacements and legacy files.
+shared final reviews, private safeguarding notes, flag copy failures, saved-lesson locks, partial batch retries, and legacy files.
 
 After completing Cloudflare setup, test a real short Zoom recording:
 
@@ -525,8 +547,8 @@ After completing Cloudflare setup, test a real short Zoom recording:
    `/recordings/RECORDING_ID/review` or `/recordings/RECORDING_ID/flag`.
 5. Flag a test concern and confirm it. Check R2 contains a verified `flagged/`
    copy and the coordinator list shows **Flagged / Retained**. Check that no
-   deletion rule covers that prefix. Replace the lesson recording as its mentor:
-   attendance must count once and the flagged previous version must remain.
+   deletion rule covers that prefix. Try another upload or replacement for the
+   saved lesson as its mentor: it must return 409 and keep the saved video and hours.
 6. Check a normal recording after seven days: playback should stop while session
    history remains. The automated expiry test provides an immediate check without
    changing production timestamps. Finally test a representative 500 MB–2 GB

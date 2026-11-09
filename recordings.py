@@ -13,6 +13,7 @@ from werkzeug.utils import secure_filename
 
 from account_store import mentor_is_approved
 from learning import get_db, lesson_access, local_datetime, present_lesson, room_access, users_by_id, public_review, selected_reviewer
+from learning import activity_for_user, room_summary, format_learning_hours, recording_duration_label, recordings_locked
 
 recordings = Blueprint('recordings', __name__)
 PART_BYTES = 16 * 1024 * 1024
@@ -111,9 +112,19 @@ def sign_url(operation, params, seconds):
         abort(503, description='Recording storage is temporarily unavailable. Please try again.')
 
 
+def recordings_for_lesson(session_id):
+    return [dict(row) for row in get_db().execute(
+        'SELECT * FROM recordings WHERE session_id = ? AND active = 1 ORDER BY rowid', (session_id,))]
+
+
 def recording_for_lesson(session_id):
-    row = get_db().execute('SELECT * FROM recordings WHERE session_id = ? AND active = 1', (session_id,)).fetchone()
-    return dict(row) if row else None
+    rows = recordings_for_lesson(session_id)
+    return rows[-1] if rows else None
+
+
+def has_final_review(lesson):
+    return lesson['reviewed_at'] is not None or any(
+        row['reviewed_at'] is not None for row in recordings_for_lesson(lesson['id']))
 
 
 def present_recording(row, now=None, users=None):
@@ -130,19 +141,21 @@ def present_recording(row, now=None, users=None):
 
 def coordinator_rows():
     users = users_by_id()
-    rows = get_db().execute('SELECT recordings.*, lessons.title, lessons.scheduled_at FROM recordings '
+    rows = get_db().execute('SELECT recordings.*, lessons.title, lessons.scheduled_at, lessons.recorded_at, '
+                           'lessons.recording_batch_size, lessons.recordings_locked_at FROM recordings '
                            'JOIN lessons ON lessons.id = recordings.session_id ORDER BY uploaded_at DESC, recordings.rowid DESC')
     return [{**present_recording(row, users=users), 'title': row['title'],
              'session_label': local_datetime(row['scheduled_at']).strftime('%d %b %Y · %H:%M'),
              'mentor': users.get(row['mentor_id'], {'name': ['Former mentor']}),
              'mentee': users.get(row['mentee_id'], {'name': ['Former mentee']}),
              'safeguarding_flag': row['safeguarding_flag'], 'active': row['active'],
+             'can_review': not row['active'] or recordings_locked(row),
              'review_note': row['review_note'], 'safeguarding_note': row['safeguarding_note']} for row in rows]
 
 
 def assigned_mentor(session_id):
     lesson, pair = lesson_access(session_id)
-    if (g.current_user.get('is_coordinator') is True or not mentor_is_approved(g.current_user)
+    if (not mentor_is_approved(g.current_user)
             or g.current_user['id'] != lesson['mentor_id']):
         abort(403, description='Only the assigned, approved mentor can upload this session recording.')
     if not pair['active']:
@@ -183,9 +196,18 @@ def upload_access(upload_id, allow_completed=False):
 @recordings.post('/api/lessons/<session_id>/recording-uploads')
 def start_upload(session_id):
     lesson = assigned_mentor(session_id)
-    if lesson['reviewed_at'] is not None:
+    if recordings_locked(lesson):
+        abort(409, description='This lesson is saved. Its recordings cannot be added to or replaced.')
+    if has_final_review(lesson):
         abort(409, description='This recording has a final review and cannot be replaced.')
     data = json_body()
+    if data.get('replace') is True:
+        abort(409, description='Saved recordings cannot be replaced. Upload all session videos together.')
+    file_count = data.get('file_count', lesson['recording_batch_size'] or 1)
+    if type(file_count) is not int or file_count < 1:
+        abort(400, description='Choose at least one video for this lesson.')
+    if lesson['recorded_at'] and file_count != lesson['recording_batch_size']:
+        abort(409, description='Finish the original selection. The number of videos cannot change after saving starts.')
     if data.get('confirmed') is not True:
         abort(400, description='Please tick the recording confirmation before uploading.')
     filename = secure_filename(str(data.get('filename', '')))[:180]
@@ -196,8 +218,8 @@ def start_upload(session_id):
     if type(size) is not int or not 1 <= size <= current_app.config['MAX_RECORDING_BYTES']:
         abort(400, description='Recordings must be between 1 byte and 2 GB.')
     current = baseline(lesson)
-    if current and (data.get('replace') is not True or data.get('recording_version') != current):
-        abort(409, description='A recording already exists. Reload and explicitly choose Replace recording.')
+    if current and data.get('recording_version') != current:
+        abort(409, description='The saved videos changed. Reload to continue the remaining uploads.')
     upload_id = uuid4().hex
     key = f'sessions/{session_id}/{uuid4().hex}{Path(filename).suffix.lower()}'
     db = get_db()
@@ -208,10 +230,14 @@ def start_upload(session_id):
                    "AND (status = 'pending' OR (status = 'processing' AND processing_at <= ?))",
                    (int(time.time()) - UPLOAD_LIFETIME, int(time.time()) - PROCESSING_LIFETIME))
         fresh = assigned_mentor(session_id)
-        if fresh['reviewed_at'] is not None:
+        if recordings_locked(fresh):
+            abort(409, description='This lesson is saved. Its recordings cannot be added to or replaced.')
+        if has_final_review(fresh):
             abort(409, description='This recording has a final review and cannot be replaced.')
         if baseline(fresh) != current:
             abort(409, description='This recording changed. Reload the session before uploading.')
+        if fresh['recorded_at'] and file_count != fresh['recording_batch_size']:
+            abort(409, description='The number of videos cannot change after saving starts.')
         old = db.execute("SELECT * FROM recording_uploads WHERE session_id = ? AND status IN ('pending', 'processing')", (session_id,)).fetchone()
         if old:
             if old['status'] == 'processing' and old['processing_at'] + PROCESSING_LIFETIME > time.time():
@@ -227,14 +253,15 @@ def start_upload(session_id):
         try:
             now = int(time.time())
             db.execute('INSERT INTO recording_uploads(id, session_id, mentor_id, r2_object_key, multipart_id, '
-                       'original_filename, content_type, file_size, baseline, consent_at, created_at) '
-                       'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                       'original_filename, content_type, file_size, baseline, consent_at, created_at, append_recording) '
+                       'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                        (upload_id, session_id, g.current_user['id'], key, multipart['UploadId'], filename,
-                        content_type, size, current, now, now))
+                        content_type, size, current, now, now, 1))
+            db.execute('UPDATE lessons SET recording_batch_size = ? WHERE id = ?', (file_count, session_id))
         except Exception:
             storage_call('abort_multipart_upload', Key=key, UploadId=multipart['UploadId'])
             raise
-    return jsonify(upload_id=upload_id, part_size=PART_BYTES,
+    return jsonify(upload_id=upload_id, part_size=PART_BYTES, file_count=file_count,
         part_url=url_for('recordings.upload_part_url', upload_id=upload_id),
         complete_url=url_for('recordings.complete_upload', upload_id=upload_id),
         abort_url=url_for('recordings.abort_upload', upload_id=upload_id)), 201
@@ -322,11 +349,28 @@ def probe_cloud_video(upload):
         abort(400, description='Could not verify the video. Use H.264 MP4/MOV or VP8/VP9 WebM and try again.')
 
 
+def completed_upload_response(upload):
+    """Return current saved totals, including when a completion response is retried."""
+    lesson, _ = lesson_access(upload['session_id'])
+    activity = activity_for_user(g.current_user['id'])
+    pair = room_summary(lesson['mentor_id'], lesson['mentee_id'])
+    return jsonify(message=SUCCESS_MESSAGE,
+        lesson_saved=recordings_locked(lesson),
+        remaining_files=max(0, (lesson['recording_batch_size'] or 0) - len(recordings_for_lesson(lesson['id']))),
+        watch_url=url_for('recordings.watch', recording_id=upload['id']),
+        progress={'user_id': g.current_user['id'], 'hours': format_learning_hours(activity['hours']),
+                  'completed': activity['completed'], 'upcoming': len(activity['upcoming']),
+                  'pair_key': f"{lesson['mentor_id']}-{lesson['mentee_id']}",
+                  'pair_hours': format_learning_hours(pair['hours']), 'pair_completed': pair['completed'],
+                  'pair_duration': pair['duration_label'],
+                  'lesson_id': lesson['id'], 'lesson_duration': recording_duration_label(lesson['recording_seconds'])})
+
+
 @recordings.post('/api/recording-uploads/<upload_id>/complete')
 def complete_upload(upload_id):
     upload = upload_access(upload_id, allow_completed=True)
     if upload['status'] == 'completed':
-        return jsonify(message=SUCCESS_MESSAGE, watch_url=url_for('recordings.watch', recording_id=upload_id))
+        return completed_upload_response(upload)
     db = get_db()
     claimed_at = int(time.time())
     with db:
@@ -350,31 +394,35 @@ def complete_upload(upload_id):
         with db:
             db.execute('BEGIN IMMEDIATE')
             fresh = assigned_mentor(upload['session_id'])
-            if fresh['reviewed_at'] is not None:
+            if recordings_locked(fresh):
+                abort(409, description='This lesson is saved. Its recordings cannot be changed.')
+            if has_final_review(fresh):
                 abort(409, description='This recording has a final review and cannot be replaced.')
             state = db.execute('SELECT status, processing_at FROM recording_uploads WHERE id = ?', (upload_id,)).fetchone()
             if state['status'] != 'processing' or state['processing_at'] != claimed_at or baseline(fresh) != upload['baseline']:
                 abort(409, description='The session recording changed. Reload before trying again.')
             # Use R2's object creation time: lifecycle retention starts when multipart finishes.
             uploaded_at = int(head['LastModified'].timestamp())
-            db.execute('UPDATE recordings SET active = 0 WHERE session_id = ? AND active = 1', (fresh['id'],))
             db.execute('INSERT INTO recordings(id, session_id, mentor_id, mentee_id, r2_object_key, original_filename, '
                        'content_type, file_size, uploaded_at, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                        (upload_id, fresh['id'], fresh['mentor_id'], fresh['mentee_id'], upload['r2_object_key'],
                         upload['original_filename'], upload['content_type'], upload['file_size'], uploaded_at,
                         uploaded_at + RETENTION_SECONDS))
             # Existing attendance/hour queries keep working; no object key is written into lessons.
-            db.execute('UPDATE lessons SET recording_filename = NULL, recording_original = ?, recording_mimetype = ?, '
+            total_seconds = duration + (fresh['recording_seconds'] or 0)
+            video_count = db.execute('SELECT COUNT(*) FROM recordings WHERE session_id = ? AND active = 1', (fresh['id'],)).fetchone()[0]
+            locked_at = int(time.time()) if video_count >= (fresh['recording_batch_size'] or 1) else None
+            db.execute('UPDATE lessons SET recording_filename = ?, recording_original = ?, recording_mimetype = ?, '
                        'recording_seconds = ?, recorded_at = ?, uploaded_by = ?, reviewed_at = NULL, reviewed_by = NULL, '
-                       'review_note = NULL, review_submitted_by = NULL, reviewer_name = NULL WHERE id = ?', (upload['original_filename'], upload['content_type'], duration,
-                       uploaded_at, g.current_user['id'], fresh['id']))
+                       'review_note = NULL, review_submitted_by = NULL, reviewer_name = NULL, recordings_locked_at = ? WHERE id = ?',
+                       (None, upload['original_filename'], upload['content_type'], total_seconds,
+                       uploaded_at, g.current_user['id'], locked_at, fresh['id']))
             db.execute("UPDATE recording_uploads SET status = 'completed' WHERE id = ?", (upload_id,))
     except Exception:
         with db:
             db.execute("UPDATE recording_uploads SET status = 'pending', processing_at = NULL WHERE id = ? AND status = 'processing' AND processing_at = ?", (upload_id, claimed_at))
         raise
-    return jsonify(message=SUCCESS_MESSAGE,
-        watch_url=url_for('recordings.watch', recording_id=upload_id))
+    return completed_upload_response(upload)
 
 
 def recording_access(recording_id, coordinator=False):
@@ -427,6 +475,9 @@ def mark_reviewed(recording_id):
     with get_db() as db:
         db.execute('BEGIN IMMEDIATE')
         row = recording_access(recording_id, coordinator=True)
+        lesson, _ = lesson_access(row['session_id'])
+        if row['active'] and not recordings_locked(lesson):
+            abort(409, description='Wait until all selected videos are uploaded before finalising the review.')
         if row['reviewed_at'] is not None:
             abort(409, description='This review is final and cannot be edited.')
         now = int(time.time())
@@ -434,7 +485,9 @@ def mark_reviewed(recording_id):
                    'reviewed_by = ?, reviewed_at = ?, review_note = ?, review_submitted_by = ?, reviewer_name = ? '
                    'WHERE id = ? AND reviewed_at IS NULL',
                    (reviewer_id, now, note, g.current_user['id'], reviewer_name, recording_id))
-        if row['active']:
+        pending = db.execute('SELECT COUNT(*) FROM recordings WHERE session_id = ? AND active = 1 AND reviewed_at IS NULL',
+                             (row['session_id'],)).fetchone()[0]
+        if row['active'] and not pending:
             db.execute('UPDATE lessons SET reviewed_at = ?, reviewed_by = ?, review_note = ?, '
                        'review_submitted_by = ?, reviewer_name = ? WHERE id = ?',
                        (now, reviewer_id, note, g.current_user['id'], reviewer_name, row['session_id']))
