@@ -10,6 +10,8 @@ Accounts use `users.json`; lessons, chat, materials and recording metadata use
 `instance/learning.sqlite3`. Password reset counters use `users.reset-limits.sqlite3`.
 Recordings continue to use the existing private Cloudflare R2 storage.
 Local backup and deployment instructions are in [docs/local-storage.md](docs/local-storage.md).
+For missing recording storage or notifications after a production pull, follow
+the [VPS setup steps](docs/vps-setup.md).
 
 ## Public website and resource library
 
