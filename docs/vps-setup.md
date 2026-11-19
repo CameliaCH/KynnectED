@@ -5,6 +5,45 @@ dependencies, generate a notification key, or restart running application worker
 Use the production service's checkout, Python environment, OS user and environment
 settings for these steps. Preserve the server's existing accounts and database.
 
+## Resource uploads: 413 Request Entity Too Large
+
+A **413** response means a request-size limit was exceeded; it does not mean the
+disk is full. The app allows PDF/PPTX materials up to 25 MiB (shown as 25 MB).
+If a smaller file, such as 1.9 MB, receives a plain Nginx 413 page, check the
+reverse proxy first: Nginx's default `client_max_body_size` is `1m`.
+See the [Nginx directive documentation](https://nginx.org/en/docs/http/ngx_http_core_module.html#client_max_body_size).
+
+On the VPS, inspect the active Nginx configuration:
+
+```sh
+sudo nginx -T
+```
+
+Find the configuration file and `server` block serving the site's HTTPS domain
+(typically under `/etc/nginx/sites-available/` on Ubuntu/Debian). Edit that
+existing block and add or update this directive, allowing room for the upload
+form around the 25 MiB file:
+
+```nginx
+client_max_body_size 26m;
+```
+
+If the `location` handling `/learning-resources/submit` defines its own
+`client_max_body_size`, update that value too: it overrides the server setting.
+Preserve the existing TLS and proxy settings. Validate the configuration, and
+reload only if validation succeeds:
+
+```sh
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+Retry the 1.9 MB upload. A successful submission appears under **Your submissions**
+as **Pending** until coordinator approval. If it still returns 413, check the
+Nginx error log configured by `error_log` and any other proxy in front of the app
+to identify which layer rejected it. Moving files to R2 alone will not fix a
+proxy limit while uploads still pass through that proxy. This Nginx setting is
+applied on the VPS; pulling application code does not change it.
+
 ## Recording storage
 
 The message **Recording storage is not configured yet** means at least one of
